@@ -1400,7 +1400,7 @@
             rotatePiece(e, pieceDiv) {
                 e.stopPropagation();
                 if (!this.modifiers.rotation) return;
-                
+
                 if (pieceDiv.dataset.rotated === 'true') {
                     pieceDiv.style.transform = 'rotate(0deg)';
                     pieceDiv.dataset.rotated = 'false';
