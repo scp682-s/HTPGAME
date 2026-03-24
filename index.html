@@ -650,7 +650,7 @@
             box-shadow: 0 8px 30px rgba(0,0,0,0.2);
             width: 320px;
             max-width: calc(100vw - 40px);
-            max-height: 400px;
+            max-height: 550px;
             z-index: 1001;
             overflow: hidden;
         }
@@ -660,9 +660,133 @@
         }
         .music-panel iframe {
             width: 100%;
-            height: 400px;
+            height: 300px;
             border: none;
-            border-radius: 16px;
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px;
+        }
+        
+        /* 本地播放器 */
+        .local-player {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 12px;
+            border-bottom-left-radius: 16px;
+            border-bottom-right-radius: 16px;
+        }
+        .player-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            cursor: pointer;
+            color: white;
+        }
+        .player-info:active {
+            opacity: 0.8;
+        }
+        .song-name {
+            font-size: 0.9rem;
+            font-weight: 500;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-right: 8px;
+        }
+        .toggle-playlist {
+            font-size: 0.8rem;
+            opacity: 0.9;
+        }
+        .player-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .control-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        .control-btn:active {
+            background: rgba(255,255,255,0.4);
+            transform: scale(0.95);
+        }
+        .control-btn.play-pause {
+            width: 44px;
+            height: 44px;
+            background: rgba(255,255,255,0.9);
+            color: #667eea;
+            font-size: 1.2rem;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+            overflow: hidden;
+            cursor: pointer;
+            margin-bottom: 6px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: white;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+        .time-display {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        /* 播放列表 */
+        .playlist {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+        .playlist.active {
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .playlist-item {
+            padding: 10px 12px;
+            color: white;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .playlist-item:last-child {
+            border-bottom: none;
+        }
+        .playlist-item:active {
+            background: rgba(255,255,255,0.2);
+        }
+        .playlist-item.active {
+            background: rgba(255,255,255,0.15);
+            font-weight: 500;
+        }
+        .playlist-item .index {
+            opacity: 0.7;
+            min-width: 20px;
         }
 
         /* 原图预览弹窗 */
@@ -914,10 +1038,42 @@
     <div class="music-overlay" id="musicOverlay"></div>
     <div class="music-panel" id="musicPanel">
         <iframe src="https://music.163.com/" allow="autoplay"></iframe>
+        
+        <!-- 本地音乐播放器 -->
+        <div class="local-player">
+            <div class="player-info" id="playerInfo">
+                <div class="song-name" id="songName">未播放</div>
+                <div class="toggle-playlist" id="togglePlaylist">📜</div>
+            </div>
+            
+            <div class="player-controls">
+                <button class="control-btn" id="prevBtn">⏮️</button>
+                <button class="control-btn" id="seekBackBtn">⏪</button>
+                <button class="control-btn play-pause" id="playPauseBtn">▶️</button>
+                <button class="control-btn" id="seekForwardBtn">⏩</button>
+                <button class="control-btn" id="nextBtn">⏭️</button>
+            </div>
+            
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            
+            <div class="time-display">
+                <span id="currentTime">0:00</span>
+                <span id="totalTime">0:00</span>
+            </div>
+            
+            <div class="playlist" id="playlist">
+                <!-- 播放列表将由JS生成 -->
+            </div>
+        </div>
     </div>
     <div class="music-controls">
         <button class="music-btn" id="musicBtn">🎵</button>
     </div>
+    
+    <!-- 隐藏的audio元素 -->
+    <audio id="audioPlayer"></audio>
 
     <!-- ==================== 第四页：完成页面 ==================== -->
     <div class="page page-complete" id="pageComplete">
@@ -1330,14 +1486,14 @@
             onDragStart(e, pieceDiv, isFromGrid = false) {
                 if (this.gameState !== 'playing') return;
                 
-                // 阻止默认行为，防止页面滚动
-                e.preventDefault();
-                
                 const touch = e.touches[0];
                 this.dragStartPos = { x: touch.clientX, y: touch.clientY };
                 this.dragSource = pieceDiv;
                 this.dragFromGrid = isFromGrid;
                 this.isDragging = false;
+                
+                // 不立即阻止默认行为，让点击事件可以触发
+                // 只在确定拖动时才阻止
             }
             
             // 拖动移动
@@ -1427,7 +1583,7 @@
                 this.cells.forEach(cell => cell.classList.remove('drag-over'));
                 
                 if (this.isDragging && this.dragGhost) {
-                    // 获取结束位置的格子
+                    // 确实发生了拖动
                     const touch = e.changedTouches[0];
                     const targetCell = this.getCellAtPosition(touch.clientX, touch.clientY);
                     
@@ -1457,11 +1613,56 @@
                     this.dragGhost.remove();
                     this.dragGhost = null;
                     this.dragSource.classList.remove('dragging');
+                } else if (this.dragSource && !this.isDragging) {
+                    // 没有拖动，是点击
+                    if (this.dragFromGrid) {
+                        // 点击格子内的碎片
+                        this.handlePuzzlePieceClick(this.dragSource);
+                    } else {
+                        // 点击碎片区的碎片
+                        this.handlePieceClick(this.dragSource);
+                    }
                 }
                 
                 this.isDragging = false;
                 this.dragSource = null;
                 this.dragFromGrid = false;
+            }
+            
+            // 处理碎片点击（从touch事件调用）
+            handlePieceClick(pieceDiv) {
+                if (this.gameState !== 'playing') return;
+
+                // 取消之前的选择
+                this.clearSelection();
+
+                // 选中当前碎片
+                pieceDiv.classList.add('selected');
+                this.selectedPiece = pieceDiv;
+                this.messageEl.textContent = '请点按一个格子放置碎片';
+
+                // 启用翻转按钮
+                if (this.modifiers.rotation) {
+                    document.getElementById('rotateBtn').disabled = false;
+                }
+            }
+            
+            // 处理格子内碎片点击（从touch事件调用）
+            handlePuzzlePieceClick(pieceDiv) {
+                if (this.gameState !== 'playing') return;
+
+                // 取消之前的选择
+                this.clearSelection();
+
+                // 选中当前碎片
+                pieceDiv.classList.add('selected');
+                this.selectedPiece = pieceDiv;
+                this.messageEl.textContent = '已选中格子内的碎片';
+
+                // 启用翻转按钮
+                if (this.modifiers.rotation) {
+                    document.getElementById('rotateBtn').disabled = false;
+                }
             }
             
             // 点击碎片
@@ -1962,12 +2163,161 @@
                 this.overlay = document.getElementById('musicOverlay');
                 this.isOpen = false;
 
+                // 本地播放器元素
+                this.audio = document.getElementById('audioPlayer');
+                this.playPauseBtn = document.getElementById('playPauseBtn');
+                this.prevBtn = document.getElementById('prevBtn');
+                this.nextBtn = document.getElementById('nextBtn');
+                this.seekBackBtn = document.getElementById('seekBackBtn');
+                this.seekForwardBtn = document.getElementById('seekForwardBtn');
+                this.progressBar = document.getElementById('progressBar');
+                this.progressFill = document.getElementById('progressFill');
+                this.currentTimeEl = document.getElementById('currentTime');
+                this.totalTimeEl = document.getElementById('totalTime');
+                this.songNameEl = document.getElementById('songName');
+                this.playlistEl = document.getElementById('playlist');
+                this.togglePlaylistBtn = document.getElementById('togglePlaylist');
+                
+                // 播放列表
+                this.playlist = [
+                    { name: 'III - Athletics', file: 'music/III-田径(III - Athletics)_爱给网_aigei_com.mp3' },
+                    { name: '爱乐之城·主题音乐', file: 'music/刘子源 - 爱乐之城·主题音乐 (钢琴连弹)_EG.flac' }
+                ];
+                this.currentIndex = 0;
+                this.isPlaying = false;
+                
+                this.initPlayer();
+                this.initEvents();
+            }
+            
+            initPlayer() {
+                // 渲染播放列表
+                this.renderPlaylist();
+                
+                // 加载第一首歌
+                this.loadSong(0);
+                
+                // 音频事件
+                this.audio.addEventListener('timeupdate', () => this.updateProgress());
+                this.audio.addEventListener('ended', () => this.playNext());
+                this.audio.addEventListener('loadedmetadata', () => {
+                    this.totalTimeEl.textContent = this.formatTime(this.audio.duration);
+                });
+            }
+            
+            initEvents() {
                 this.btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     this.toggle();
                 });
 
                 this.overlay.addEventListener('click', () => this.close());
+                
+                // 播放/暂停
+                this.playPauseBtn.addEventListener('click', () => this.togglePlay());
+                
+                // 上一首/下一首
+                this.prevBtn.addEventListener('click', () => this.playPrev());
+                this.nextBtn.addEventListener('click', () => this.playNext());
+                
+                // 快退/快进
+                this.seekBackBtn.addEventListener('click', () => this.seek(-10));
+                this.seekForwardBtn.addEventListener('click', () => this.seek(10));
+                
+                // 进度条点击
+                this.progressBar.addEventListener('click', (e) => this.setProgress(e));
+                
+                // 播放列表切换
+                this.togglePlaylistBtn.addEventListener('click', () => {
+                    this.playlistEl.classList.toggle('active');
+                });
+            }
+            
+            renderPlaylist() {
+                this.playlistEl.innerHTML = '';
+                this.playlist.forEach((song, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'playlist-item';
+                    if (index === this.currentIndex) {
+                        item.classList.add('active');
+                    }
+                    item.innerHTML = `<span class="index">${index + 1}</span><span>${song.name}</span>`;
+                    item.addEventListener('click', () => {
+                        this.loadSong(index);
+                        this.play();
+                    });
+                    this.playlistEl.appendChild(item);
+                });
+            }
+            
+            loadSong(index) {
+                this.currentIndex = index;
+                const song = this.playlist[index];
+                this.audio.src = song.file;
+                this.songNameEl.textContent = song.name;
+                this.updatePlaylistActive();
+            }
+            
+            updatePlaylistActive() {
+                const items = this.playlistEl.querySelectorAll('.playlist-item');
+                items.forEach((item, index) => {
+                    item.classList.toggle('active', index === this.currentIndex);
+                });
+            }
+            
+            togglePlay() {
+                if (this.isPlaying) {
+                    this.pause();
+                } else {
+                    this.play();
+                }
+            }
+            
+            play() {
+                this.audio.play();
+                this.isPlaying = true;
+                this.playPauseBtn.textContent = '⏸️';
+            }
+            
+            pause() {
+                this.audio.pause();
+                this.isPlaying = false;
+                this.playPauseBtn.textContent = '▶️';
+            }
+            
+            playNext() {
+                this.currentIndex = (this.currentIndex + 1) % this.playlist.length;
+                this.loadSong(this.currentIndex);
+                this.play();
+            }
+            
+            playPrev() {
+                this.currentIndex = (this.currentIndex - 1 + this.playlist.length) % this.playlist.length;
+                this.loadSong(this.currentIndex);
+                this.play();
+            }
+            
+            seek(seconds) {
+                this.audio.currentTime = Math.max(0, Math.min(this.audio.duration, this.audio.currentTime + seconds));
+            }
+            
+            setProgress(e) {
+                const rect = this.progressBar.getBoundingClientRect();
+                const percent = (e.clientX - rect.left) / rect.width;
+                this.audio.currentTime = percent * this.audio.duration;
+            }
+            
+            updateProgress() {
+                const percent = (this.audio.currentTime / this.audio.duration) * 100 || 0;
+                this.progressFill.style.width = percent + '%';
+                this.currentTimeEl.textContent = this.formatTime(this.audio.currentTime);
+            }
+            
+            formatTime(seconds) {
+                if (isNaN(seconds)) return '0:00';
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
             }
 
             toggle() {
