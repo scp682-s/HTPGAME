@@ -821,15 +821,15 @@
                 <div class="difficulty-modifiers" id="difficultyModifiers" style="display: none;">
                     <label class="mod-opt" id="modifierRotation" style="display: none;">
                         <input type="checkbox" id="enableRotation">
-                        <span>🔄 拼图旋转(双击旋转)</span>
+                        <span>🔄 拼图旋转: 存在旋转过180°的拼图</span>
                     </label>
                     <label class="mod-opt" id="modifierHidden" style="display: none;">
                         <input type="checkbox" id="enableHidden">
-                        <span>👻 拼图隐藏</span>
+                        <span>👻 拼图隐藏: 部分碎片初始不可见</span>
                     </label>
                     <label class="mod-opt" id="modifierTrickster" style="display: none;">
                         <input type="checkbox" id="enableTrickster">
-                        <span>😈 捣蛋鬼</span>
+                        <span>😈 捣蛋鬼: 随机时段移动已放置碎片</span>
                     </label>
                 </div>
             </div>
@@ -1329,6 +1329,9 @@
             // 拖动开始
             onDragStart(e, pieceDiv, isFromGrid = false) {
                 if (this.gameState !== 'playing') return;
+                
+                // 阻止默认行为，防止页面滚动
+                e.preventDefault();
                 
                 const touch = e.touches[0];
                 this.dragStartPos = { x: touch.clientX, y: touch.clientY };
