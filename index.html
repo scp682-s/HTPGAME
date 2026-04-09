@@ -1040,7 +1040,7 @@
     <!-- 音乐控制区域 -->
     <div class="music-overlay" id="musicOverlay"></div>
     <div class="music-panel" id="musicPanel">
-        <iframe id="neteaseIframe" data-src="https://music.163.com/" allow="autoplay" sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"></iframe>
+        <iframe id="neteaseIframe" src="https://music.163.com/" allow="autoplay" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"></iframe>
         
         <!-- 本地音乐播放器 -->
         <div class="local-player">
@@ -2336,11 +2336,6 @@
                 this.panel.classList.add('active');
                 this.overlay.classList.add('active');
                 this.btn.classList.add('active');
-                // 懒加载 iframe，首次打开时才真正加载网易云，避免页面打开时自动跳 App
-                const iframe = document.getElementById('neteaseIframe');
-                if (iframe && !iframe.src) {
-                    iframe.src = iframe.dataset.src;
-                }
             }
 
             close() {
