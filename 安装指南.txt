@@ -1,0 +1,98 @@
+========================================
+房树人拼图游戏 - 后端安装指南
+========================================
+
+【快速开始 - 3步完成】
+
+第1步：安装Python依赖
+------------------------
+打开命令提示符（cmd），执行：
+
+cd backend
+pip install -r requirements.txt
+
+
+第2步：配置API密钥
+------------------------
+1. 访问 https://platform.deepseek.com/
+2. 注册并登录（支持手机号）
+3. 进入"API Keys"页面
+4. 点击"创建新的API Key"
+5. 复制生成的密钥（格式：sk-xxxxxxxx）
+
+6. 在backend目录下：
+   复制 .env.example 为 .env
+
+7. 编辑 .env 文件，填入：
+   DEEPSEEK_API_KEY=sk-你的密钥
+
+
+第3步：启动后端服务
+------------------------
+方法1：双击运行 start-backend.bat
+
+方法2：命令行运行
+cd backend
+python app.py
+
+看到以下信息表示成功：
+* Running on http://0.0.0.0:5000
+
+
+【集成到前端】
+------------------------
+在 index.html 的 </body> 标签之前添加：
+
+<script src="frontend-integration.js"></script>
+
+
+【测试功能】
+------------------------
+cd backend
+python test_api.py
+
+
+【常见问题】
+------------------------
+
+Q1: 提示"Python不是内部或外部命令"
+A1: 需要安装Python 3.8+
+    下载地址：https://www.python.org/downloads/
+    安装时勾选"Add Python to PATH"
+
+Q2: pip install 失败
+A2: 尝试使用国内镜像：
+    pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+Q3: 提示"API Key错误"
+A3: 检查 .env 文件中的密钥是否正确
+    格式：DEEPSEEK_API_KEY=sk-你的密钥
+    注意：没有引号，没有空格
+
+Q4: 端口5000被占用
+A4: 修改 app.py 最后一行的端口号为5001
+
+
+【免费API推荐】
+------------------------
+
+DeepSeek（最推荐）
+- 官网：https://platform.deepseek.com/
+- 免费额度：500万tokens（约2000份报告）
+- 价格：1元/百万tokens
+
+智谱AI
+- 官网：https://open.bigmodel.cn/
+- 免费额度：1000万tokens
+
+
+【安全说明】
+------------------------
+只分析游戏提供的4张标准房树人图像
+用户上传的图片不会被AI分析
+严格保护用户隐私
+
+
+========================================
+祝你使用愉快！
+========================================

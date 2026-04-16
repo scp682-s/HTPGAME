@@ -668,7 +668,17 @@
             border-top-left-radius: 16px;
             border-top-right-radius: 16px;
         }
-        
+
+        /* 音乐提示 */
+        .music-tip {
+            background: #fff3cd;
+            color: #856404;
+            padding: 8px 12px;
+            font-size: 0.75rem;
+            text-align: center;
+            border-bottom: 1px solid #ffeaa7;
+        }
+
         /* 本地播放器 */
         .local-player {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -1041,7 +1051,9 @@
     <div class="music-overlay" id="musicOverlay"></div>
     <div class="music-panel" id="musicPanel">
         <iframe src="https://music.163.com/" allow="autoplay"></iframe>
-        
+
+        <div class="music-tip">💡 如遇无法打开网易云音乐网页，请刷新本网页</div>
+
         <!-- 本地音乐播放器 -->
         <div class="local-player">
             <div class="player-info" id="playerInfo">
