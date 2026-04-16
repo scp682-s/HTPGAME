@@ -1100,6 +1100,7 @@
                 <p>🔄 步数: <span id="completeSteps">0</span></p>
             </div>
             <div class="complete-btns">
+                <button class="btn btn-primary" id="viewReportBtn" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">📊 查看心理分析报告</button>
                 <button class="btn btn-primary" id="playAgainBtn">🔄 再玩一次</button>
                 <button class="btn btn-secondary" id="backHomeBtn">🏠 返回主页</button>
                 <button class="btn btn-survey" id="surveyBtn">📋 问卷调查</button>
@@ -2396,5 +2397,30 @@
 
     <!-- 心理分析报告功能 -->
     <script src="frontend-integration.js"></script>
+    
+    <!-- 心理分析报告功能 -->
+    
+    <!-- 绑定心理分析报告按钮 -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 等待所有脚本加载完成
+        setTimeout(function() {
+            const btn = document.getElementById('viewReportBtn');
+            if (btn) {
+                btn.onclick = function() {
+                    if (typeof generatePsychologyReport === 'function') {
+                        generatePsychologyReport();
+                    } else {
+                        alert('心理分析功能加载失败，请刷新页面重试');
+                    }
+                };
+                console.log('✅ 心理分析报告按钮已绑定');
+            } else {
+                console.error('❌ 未找到心理分析报告按钮');
+            }
+        }, 1000);
+    });
+    </script>
 </body>
 </html>
+
