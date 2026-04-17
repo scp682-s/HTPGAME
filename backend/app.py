@@ -1,5 +1,6 @@
 import os
 import time
+import traceback
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from openai import OpenAI
@@ -20,7 +21,7 @@ def get_client():
     global client
     if client is None:
         client = OpenAI(
-            api_key=os.environ.get("DEEPSEEK_API_KEY"),
+            api_key=os.environ.get("sk-4f5b73ff2d46427db52267ec929ac7bc"),
             base_url="https://api.deepseek.com"
         )
     return client
@@ -168,6 +169,9 @@ def validate_image():
                 "valid": False,
                 "message": "只能分析游戏提供的标准房树人图像"
             }), 200
+    except Exception as e:
+    	app.logger.error(traceback.format_exc())
+    	return jsonify({"error": "生成报告失败", "message": str(e)}), 500
 
     except Exception as e:
         return jsonify({
