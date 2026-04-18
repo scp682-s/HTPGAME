@@ -1,4 +1,23 @@
 // frontend-integration.js
+
+// 逐字显示函数
+function typewriterEffect(element, text, speed = 50) {
+  element.textContent = '';
+  let index = 0;
+
+  return new Promise((resolve) => {
+    const timer = setInterval(() => {
+      if (index < text.length) {
+        element.textContent += text.charAt(index);
+        index++;
+      } else {
+        clearInterval(timer);
+        resolve();
+      }
+    }, speed);
+  });
+}
+
 async function generatePsychologyReport() {
   const game = window.puzzleGame;
   if (!game || game.gameState !== 'completed') {
@@ -19,6 +38,18 @@ async function generatePsychologyReport() {
     image_name: document.getElementById('previewImage')?.src.split('/').pop() || '用户图片'
   };
 
+  const modal = document.getElementById('reportModal');
+  const reportText = document.getElementById('reportText');
+
+  if (!modal || !reportText) {
+    alert('报告弹窗未找到');
+    return;
+  }
+
+  // 先显示弹窗和加载提示
+  reportText.textContent = '正在生成心理分析报告...';
+  modal.style.display = 'flex';
+
   try {
     const response = await fetch(window.API_BASE_URL + '/api/generate_report', {
       method: 'POST',
@@ -26,21 +57,15 @@ async function generatePsychologyReport() {
       body: JSON.stringify(data)
     });
     const result = await response.json();
+
     if (result.success) {
-      // 显示报告
-      const modal = document.getElementById('reportModal');
-      const reportText = document.getElementById('reportText');
-      if (modal && reportText) {
-        reportText.innerText = result.report;
-        modal.style.display = 'flex';
-      } else {
-        alert('📊 心理分析报告：\n\n' + result.report);
-      }
+      // 逐字显示报告
+      await typewriterEffect(reportText, result.report, 50);
     } else {
-      alert('生成报告失败：' + result.error);
+      reportText.textContent = '生成报告失败：' + result.error;
     }
   } catch (err) {
-    alert('网络错误：' + err.message);
+    reportText.textContent = '网络错误：' + err.message;
   }
 }
 
