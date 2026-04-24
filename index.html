@@ -1378,7 +1378,14 @@
 
                 // 调用后端创建游戏
                 try {
-                    const imageSource = document.getElementById('previewImage')?.src.split('/').pop() || 'photo/1.png';
+                    let imageSource = document.getElementById('previewImage')?.src || '';
+
+                    // 如果是内置图片（http://开头），提取相对路径
+                    if (imageSource.startsWith('http://') || imageSource.startsWith('https://')) {
+                        const url = new URL(imageSource);
+                        imageSource = url.pathname.substring(1); // 去掉开头的 /
+                    }
+
                     const gameState = await this.apiClient.createGame(imageSource, this.gridSize, this.modifiers);
 
                     this.gameState = gameState.gameState;
