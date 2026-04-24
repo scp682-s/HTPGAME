@@ -1,5 +1,10 @@
 // frontend-integration.js
 
+// 设置 API 基础 URL
+window.API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:3001'
+  : '';
+
 // 报告历史记录管理
 const ReportHistory = {
   storageKey: 'psychologyReports',
@@ -96,6 +101,17 @@ window.deleteReport = function(id) {
   }
 };
 
+// 获取或创建 client_id
+function getOrCreateClientId() {
+  const key = 'puzzle_client_id';
+  let clientId = localStorage.getItem(key);
+  if (!clientId) {
+    clientId = 'web-' + Date.now() + '-' + Math.random().toString(36).substring(2, 15);
+    localStorage.setItem(key, clientId);
+  }
+  return clientId;
+}
+
 // 生成新报告
 window.generateNewReport = async function() {
   const game = window.puzzleGame;
@@ -105,7 +121,11 @@ window.generateNewReport = async function() {
   }
 
   const timeSeconds = Math.floor((Date.now() - game.startTime) / 1000);
+  const clientId = getOrCreateClientId();
+
   const data = {
+    client_id: clientId,
+    game_id: 'game-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9),
     time_seconds: timeSeconds,
     moves: game.moveCount,
     grid_size: game.gridSize,
@@ -114,7 +134,10 @@ window.generateNewReport = async function() {
       hidden: game.modifiers.hidden || false,
       trickster: game.modifiers.trickster || false
     },
-    image_name: document.getElementById('previewImage')?.src.split('/').pop() || '用户图片'
+    image_name: document.getElementById('previewImage')?.src.split('/').pop() || '用户图片',
+    piece_order: game.pieceOrder || [],
+    time_intervals: game.timeIntervals || [],
+    modification_count: game.modificationCount || 0
   };
 
   const modal = document.getElementById('reportModal');

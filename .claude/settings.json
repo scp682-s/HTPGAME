@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/redking/Desktop/心宇宙1/**)",
+      "Bash(node server.js)",
+      "Bash(node test_database.js)",
+      "Bash(node test_real_scenario.js)",
+      "Bash(sqlite3 data/behavior_analytics.db \"SELECT report_text FROM report_logs ORDER BY created_at DESC LIMIT 1\")",
+      "Bash(node view_report.js)",
+      "Bash(node test_puzzle_engine.js)"
+    ]
+  }
+}
