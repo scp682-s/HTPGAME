@@ -410,37 +410,37 @@ async function generateHealingResponse(messages, reportContent, questionNum) {
   const hasConfusion = reportLower.includes('迷茫') || reportLower.includes('困惑') || reportLower.includes('犹豫');
 
   if (questionNum === 1) {
-    // 第一个问题：根据报告内容给出针对性回应
-    let response = '我已经仔细阅读了您的心理报告。';
+    // 第一个问题：针对用户提问给出回应，安抚情绪
+    let response = '我理解你的感受。';
 
     if (hasAnxiety) {
-      response += '我注意到报告中提到了一些焦虑的情绪。这种感觉是很多人都会经历的，请不要过于担心。';
+      response += '从你的报告中，我看到你可能有一些焦虑的情绪。这种感觉很多人都会有，是正常的心理反应。';
     } else if (hasDepression) {
-      response += '我看到报告中反映出一些情绪低落的迹象。这些感受都是真实的，我理解你现在的状态。';
+      response += '我注意到你可能有些情绪低落。这些感受都是真实的，不要责怪自己。';
     } else if (hasStress) {
-      response += '报告显示您可能承受着一定的压力。在当今社会，这是很常见的情况。';
+      response += '你可能正承受着一些压力。在现代社会，这是很常见的情况。';
     } else if (hasConfusion) {
-      response += '我看到您可能处于一个探索和思考的阶段。这种迷茫感其实是成长的一部分。';
+      response += '你可能正处于探索和思考的阶段。这种迷茫感其实是成长的一部分。';
     } else {
-      response += '从报告来看，您的整体状态还不错。';
+      response += '从报告来看，你的整体状态还不错。';
     }
 
-    response += '您刚才提到的"' + latestUserMessage.substring(0, 30) + '"，我能理解您的感受。请放心，这些都是可以理解的，不要给自己太大压力。';
+    response += '你提到的这些感受都是可以理解的。请记住，每个人都有自己的节奏，不要给自己太大压力。';
 
     return response;
   } else if (questionNum === 2) {
-    // 第二个问题：继续安抚和引导
-    let response = '谢谢你愿意和我分享这些。';
+    // 第二个问题：继续安抚和引导，给予支持
+    let response = '谢谢你愿意和我分享。';
 
     if (hasAnxiety || hasStress) {
-      response += '我能感受到你的压力。记住，适度的焦虑是正常的，它提醒我们关注重要的事情。但如果感觉过于强烈，可以尝试深呼吸、运动或找朋友倾诉。';
+      response += '面对压力和焦虑，你可以尝试一些放松的方式，比如深呼吸、散步、听音乐，或者找信任的朋友聊聊天。';
     } else if (hasDepression) {
-      response += '你的感受是真实且重要的。情绪有起伏是很正常的，不要因此责怪自己。';
+      response += '情绪有起伏是很正常的。当你感到低落时，可以做一些让自己开心的小事，或者寻求身边人的陪伴。';
     } else {
       response += '你已经在努力面对自己的感受了，这本身就很了不起。';
     }
 
-    response += '每个人都有自己的节奏，不必和别人比较。你现在所做的，就是最适合你的。';
+    response += '记住，你不是一个人在面对这些。每个人都有自己的困难时刻，重要的是学会接纳自己。';
 
     return response;
   } else {
@@ -473,7 +473,7 @@ async function generateHealingResponse(messages, reportContent, questionNum) {
       response += '4. 如果感到压力持续或加重，建议寻求学校心理咨询中心的专业帮助\n';
     }
 
-    response += '\n记住，寻求帮助是勇敢的表现，而不是软弱。你值得被关心和支持。祝你一切顺利！🌟';
+    response += '\n记住，寻求帮助是勇敢的表现。你值得被关心和支持。祝你一切顺利！🌟';
 
     return response;
   }

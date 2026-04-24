@@ -265,6 +265,13 @@ async function generatePsychologyReport() {
 // 暴露给全局
 window.generatePsychologyReport = generatePsychologyReport;
 
+// 页面加载时初始化未读徽章
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(() => {
+    ReportHistory.updateUnreadBadge();
+  }, 1000);
+});
+
 // 页面加载时更新未读徽章
 document.addEventListener('DOMContentLoaded', function() {
   setTimeout(() => {

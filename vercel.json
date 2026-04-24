@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/api/validate-image", "destination": "/api/validate-image" },
+    { "source": "/api/puzzle/games", "destination": "/api/puzzle?action=create" },
+    { "source": "/api/puzzle/games/:gameId", "destination": "/api/puzzle?action=get&gameId=:gameId" },
+    { "source": "/api/puzzle/games/:gameId/actions", "destination": "/api/puzzle?action=move&gameId=:gameId" },
+    { "source": "/api/generate_report", "destination": "/api/generate_report" }
+  ],
+  "env": {
+    "ADMIN_PASSWORD": "123456"
+  }
+}
