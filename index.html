@@ -1196,11 +1196,52 @@
             }
         });
 
-        function selectImage(src) {
+        async function selectImage(src) {
             imageModal.classList.remove('active');
             const previewImage = document.getElementById('previewImage');
             const placeholderContent = document.getElementById('placeholderContent');
-            
+
+            // 如果是自定义图片（data:image），先校验三要素
+            if (src.startsWith('data:image/')) {
+                const loadingMsg = document.createElement('div');
+                loadingMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.2);z-index:10000;text-align:center;';
+                loadingMsg.innerHTML = '<div style="font-size:2rem;margin-bottom:10px;">🔍</div><div>正在校验图片...</div>';
+                document.body.appendChild(loadingMsg);
+
+                try {
+                    const response = await fetch(window.API_BASE_URL + '/api/validate-image', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ imageSource: src })
+                    });
+                    const result = await response.json();
+                    document.body.removeChild(loadingMsg);
+
+                    if (!result.success || !result.data.valid) {
+                        const errorMsg = result.data?.message || '图片校验失败';
+                        const elements = result.data?.elements || {};
+                        let details = '缺少的元素：';
+                        if (!elements.house) details += ' 房子';
+                        if (!elements.tree) details += ' 树';
+                        if (!elements.person) details += ' 人物';
+
+                        alert(`❌ ${errorMsg}\n\n${details}\n\n请上传包含房子、树、人物三要素的图片。`);
+                        return;
+                    }
+
+                    // 校验通过，显示提示
+                    const successMsg = document.createElement('div');
+                    successMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#2ecc71;color:white;padding:15px 30px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.2);z-index:10000;font-size:1.1rem;';
+                    successMsg.textContent = '✅ 图片校验通过！';
+                    document.body.appendChild(successMsg);
+                    setTimeout(() => document.body.removeChild(successMsg), 2000);
+                } catch (error) {
+                    document.body.removeChild(loadingMsg);
+                    alert('图片校验失败: ' + error.message);
+                    return;
+                }
+            }
+
             const img = new Image();
             img.onload = function() {
                 window.puzzleGame.originalImage = img;
@@ -1253,27 +1294,30 @@
                 this.timerInterval = null;
                 this.selectedPiece = null;
                 this.selectedCell = null;
-                
+
                 // 难度词条
                 this.modifiers = { rotation: false, hidden: false, trickster: false };
                 this.rotatedPieces = [];
                 this.hiddenPieces = [];
                 this.tricksterTriggered = false;
-                
+
                 // 拖动相关
                 this.isDragging = false;
                 this.dragGhost = null;
                 this.dragSource = null;
                 this.dragStartPos = { x: 0, y: 0 };
-                this.dragThreshold = 10; // 拖动阈值，超过此距离才算拖动
-                this.dragFromGrid = false; // 标记是否从格子内拖动
-                
+                this.dragThreshold = 10;
+                this.dragFromGrid = false;
+
                 // DOM元素
                 this.gridContainer = document.getElementById('gridContainer');
                 this.piecesContainer = document.getElementById('piecesContainer');
                 this.gameHint = document.getElementById('gameHint');
                 this.messageEl = document.getElementById('message');
-                
+
+                // API 客户端
+                this.apiClient = new PuzzleClient();
+
                 this.initEvents();
             }
             
@@ -1303,26 +1347,19 @@
                 this.stopTimer();
             }
             
-            generatePuzzle() {
+            async generatePuzzle() {
                 if (!this.originalImage) return;
-                
-                this.gameState = 'playing';
-                this.moveCount = 0;
-                this.startTime = Date.now();
-                this.startTimer();
+
                 this.selectedPiece = null;
                 this.selectedCell = null;
-                
-                document.getElementById('reshuffleBtn').disabled = false;
-                document.getElementById('solveBtn').disabled = false;
+
+                document.getElementById('reshuffleBtn').disabled = true;
+                document.getElementById('solveBtn').disabled = true;
 
                 // 读取难度词条
                 this.modifiers.rotation = document.getElementById('enableRotation')?.checked || false;
                 this.modifiers.hidden = document.getElementById('enableHidden')?.checked || false;
                 this.modifiers.trickster = document.getElementById('enableTrickster')?.checked || false;
-                this.rotatedPieces = [];
-                this.hiddenPieces = [];
-                this.tricksterTriggered = false;
 
                 // 控制翻转按钮显示
                 const rotateBtn = document.getElementById('rotateBtn');
@@ -1332,22 +1369,48 @@
                 } else {
                     rotateBtn.style.display = 'none';
                 }
-                
+
                 // 清除旧内容
                 this.gridContainer.innerHTML = '';
                 this.piecesContainer.innerHTML = '';
                 this.gameHint.style.display = 'none';
                 this.gridContainer.style.display = 'grid';
+
+                // 调用后端创建游戏
+                try {
+                    const imageSource = document.getElementById('previewImage')?.src.split('/').pop() || 'photo/1.png';
+                    const gameState = await this.apiClient.createGame(imageSource, this.gridSize, this.modifiers);
+
+                    this.gameState = gameState.gameState;
+                    this.moveCount = gameState.moveCount;
+                    this.startTime = Date.now() - (gameState.elapsedSeconds * 1000);
+                    this.startTimer();
+
+                    document.getElementById('reshuffleBtn').disabled = false;
+                    document.getElementById('solveBtn').disabled = false;
+
+                    // 渲染游戏界面
+                    this.renderGameState(gameState);
+                } catch (error) {
+                    alert('创建游戏失败: ' + error.message);
+                    this.resetGame();
+                    return;
+                }
                 
+
+                this.messageEl.textContent = '点按碎片，再点按格子放置';
+            }
+
+            // 渲染游戏状态
+            renderGameState(gameState) {
                 // 计算尺寸
                 const imgWidth = this.originalImage.width;
                 const imgHeight = this.originalImage.height;
                 const imgRatio = imgWidth / imgHeight;
-                
-                // 手机端适配：最大宽度为屏幕宽度-40px
+
                 const maxWidth = Math.min(window.innerWidth - 40, 360);
                 const maxHeight = 400;
-                
+
                 let canvasWidth, canvasHeight;
                 if (imgRatio >= 1) {
                     canvasWidth = maxWidth;
@@ -1364,30 +1427,26 @@
                         canvasHeight = canvasWidth / imgRatio;
                     }
                 }
-                
+
                 this.gridContainer.style.width = canvasWidth + 'px';
                 this.gridContainer.style.height = canvasHeight + 'px';
-                
-                // 绘制完整图片
+                this.gridContainer.style.gridTemplateColumns = `repeat(${gameState.gridSize}, 1fr)`;
+                this.gridContainer.style.gridTemplateRows = `repeat(${gameState.gridSize}, 1fr)`;
+
+                // 绘制完整图片用于生成碎片
                 const fullCanvas = document.createElement('canvas');
                 fullCanvas.width = canvasWidth;
                 fullCanvas.height = canvasHeight;
                 const ctx = fullCanvas.getContext('2d');
                 ctx.drawImage(this.originalImage, 0, 0, canvasWidth, canvasHeight);
-                
-                // 设置网格
-                this.gridContainer.style.gridTemplateColumns = `repeat(${this.gridSize}, 1fr)`;
-                this.gridContainer.style.gridTemplateRows = `repeat(${this.gridSize}, 1fr)`;
-                
-                const pieceWidth = canvasWidth / this.gridSize;
-                const pieceHeight = canvasHeight / this.gridSize;
-                
-                // 生成碎片数据
+
+                const pieceWidth = canvasWidth / gameState.gridSize;
+                const pieceHeight = canvasHeight / gameState.gridSize;
+
+                // 生成碎片数据映射
                 this.pieceData = [];
-                this.cells = [];
-                
-                for (let row = 0; row < this.gridSize; row++) {
-                    for (let col = 0; col < this.gridSize; col++) {
+                for (let row = 0; row < gameState.gridSize; row++) {
+                    for (let col = 0; col < gameState.gridSize; col++) {
                         const pieceCanvas = document.createElement('canvas');
                         pieceCanvas.width = pieceWidth;
                         pieceCanvas.height = pieceHeight;
@@ -1397,7 +1456,7 @@
                             col * pieceWidth, row * pieceHeight, pieceWidth, pieceHeight,
                             0, 0, pieceWidth, pieceHeight
                         );
-                        
+
                         this.pieceData.push({
                             id: `p-${row}-${col}`,
                             originalRow: row,
@@ -1406,72 +1465,69 @@
                         });
                     }
                 }
-                
+
                 // 创建网格槽位
-                for (let i = 0; i < this.gridSize * this.gridSize; i++) {
+                this.cells = [];
+                for (let i = 0; i < gameState.gridSize * gameState.gridSize; i++) {
                     const cell = document.createElement('div');
                     cell.className = 'grid-cell';
-                    cell.dataset.row = Math.floor(i / this.gridSize);
-                    cell.dataset.col = i % this.gridSize;
+                    cell.dataset.index = i;
+                    cell.dataset.row = Math.floor(i / gameState.gridSize);
+                    cell.dataset.col = i % gameState.gridSize;
                     cell.addEventListener('click', (e) => this.onCellClick(e, cell));
                     this.gridContainer.appendChild(cell);
                     this.cells.push(cell);
                 }
-                
-                // 打乱碎片
-                const shuffled = [...this.pieceData].sort(() => Math.random() - 0.5);
-                
-                // 难度词条处理
-                const totalPieces = shuffled.length;
-                const rotationCount = this.gridSize >= 6 ? 3 : 1;
-                const hiddenCount = this.gridSize >= 6 ? 4 : 1;
-                
-                if (this.modifiers.rotation) {
-                    this.rotatedPieces = this.getRandomIndices(totalPieces, rotationCount);
-                }
-                if (this.modifiers.hidden) {
-                    const available = Array.from({length: totalPieces}, (_, i) => i)
-                        .filter(i => !this.rotatedPieces.includes(i));
-                    this.hiddenPieces = this.getRandomIndices(available.length, hiddenCount)
-                        .map(i => available[i]);
-                }
-                
-                // 创建碎片
-                shuffled.forEach((piece, index) => {
-                    const pieceDiv = document.createElement('div');
-                    pieceDiv.className = 'piece-item';
-                    pieceDiv.style.backgroundImage = `url(${piece.dataURL})`;
-                    pieceDiv.dataset.pieceId = piece.id;
-                    pieceDiv.dataset.originalRow = piece.originalRow;
-                    pieceDiv.dataset.originalCol = piece.originalCol;
-                    
-                    // 旋转
-                    if (this.rotatedPieces.includes(index)) {
-                        pieceDiv.style.transform = 'rotate(180deg)';
-                        pieceDiv.dataset.rotated = 'true';
-                    }
-                    
-                    // 隐藏
-                    if (this.hiddenPieces.includes(index)) {
-                        pieceDiv.style.display = 'none';
-                        pieceDiv.dataset.hidden = 'true';
-                    }
 
-                    // 点击事件
-                    pieceDiv.addEventListener('click', (e) => this.onPieceClick(e, pieceDiv));
-                    
-                    // 触摸拖动事件
-                    this.bindDragEvents(pieceDiv);
-
-                    this.piecesContainer.appendChild(pieceDiv);
+                // 渲染棋盘上的碎片
+                gameState.board.forEach((pieceId, index) => {
+                    if (pieceId) {
+                        const piece = this.pieceData.find(p => p.id === pieceId);
+                        if (piece) {
+                            const pieceDiv = this.createPieceElement(piece, gameState);
+                            this.cells[index].appendChild(pieceDiv);
+                            this.bindPuzzlePieceDragEvents(pieceDiv);
+                        }
+                    }
                 });
-                
-                // 捣蛋鬼
-                if (this.modifiers.trickster) {
-                    this.scheduleTrickster();
+
+                // 渲染托盘碎片
+                gameState.tray.forEach(trayPiece => {
+                    const piece = this.pieceData.find(p => p.id === trayPiece.id);
+                    if (piece) {
+                        const pieceDiv = this.createPieceElement(piece, gameState, trayPiece);
+                        this.piecesContainer.appendChild(pieceDiv);
+                        this.bindDragEvents(pieceDiv);
+                    }
+                });
+            }
+
+            // 创建碎片元素
+            createPieceElement(piece, gameState, trayPiece = null) {
+                const pieceDiv = document.createElement('div');
+                pieceDiv.className = 'piece-item';
+                pieceDiv.style.backgroundImage = `url(${piece.dataURL})`;
+                pieceDiv.dataset.pieceId = piece.id;
+                pieceDiv.dataset.originalRow = piece.originalRow;
+                pieceDiv.dataset.originalCol = piece.originalCol;
+
+                // 旋转状态
+                const rotation = trayPiece ? trayPiece.rotation : 0;
+                if (rotation !== 0) {
+                    pieceDiv.style.transform = `rotate(${rotation}deg)`;
+                    pieceDiv.dataset.rotated = 'true';
                 }
-                
-                this.messageEl.textContent = '点按碎片，再点按格子放置';
+
+                // 隐藏状态
+                const isHidden = trayPiece ? trayPiece.hidden : false;
+                if (isHidden) {
+                    pieceDiv.style.display = 'none';
+                    pieceDiv.dataset.hidden = 'true';
+                }
+
+                pieceDiv.addEventListener('click', (e) => this.onPieceClick(e, pieceDiv));
+
+                return pieceDiv;
             }
             
             getRandomIndices(total, count) {
@@ -1723,24 +1779,41 @@
             }
 
             // 点击格子
-            onCellClick(e, cell) {
+            async onCellClick(e, cell) {
                 e.stopPropagation();
                 if (this.gameState !== 'playing') return;
-                
+
                 const existingPiece = cell.querySelector('.puzzle-piece');
-                
+                const targetIndex = parseInt(cell.dataset.index);
+
                 if (this.selectedPiece) {
                     // 有选中的碎片，放置到格子
-                    if (existingPiece) {
-                        // 格子有碎片，交换
-                        this.swapWithCell(cell, existingPiece);
-                    } else {
-                        // 格子为空，直接放置
-                        this.placeToCell(cell);
+                    const pieceId = this.selectedPiece.dataset.pieceId;
+                    const isFromTray = this.selectedPiece.parentElement === this.piecesContainer;
+
+                    try {
+                        let gameState;
+                        if (isFromTray) {
+                            gameState = await this.apiClient.placeFromTray(pieceId, targetIndex);
+                        } else {
+                            const sourceIndex = parseInt(this.selectedPiece.parentElement.dataset.index);
+                            gameState = await this.apiClient.moveCell(sourceIndex, targetIndex);
+                        }
+
+                        this.updateGameState(gameState);
+                    } catch (error) {
+                        alert('操作失败: ' + error.message);
                     }
                 } else if (this.selectedCell) {
                     // 有选中的格子内碎片，进行格子间交换
-                    this.swapGridPieces(this.selectedCell, cell);
+                    const sourceIndex = parseInt(this.selectedCell.dataset.index);
+
+                    try {
+                        const gameState = await this.apiClient.moveCell(sourceIndex, targetIndex);
+                        this.updateGameState(gameState);
+                    } catch (error) {
+                        alert('操作失败: ' + error.message);
+                    }
                 } else if (existingPiece) {
                     // 选中格子内的碎片
                     this.clearSelection();
@@ -1881,21 +1954,16 @@
             }
 
             // 旋转选中的碎片（按钮）
-            rotateSelectedPiece() {
+            async rotateSelectedPiece() {
                 if (!this.modifiers.rotation || !this.selectedPiece) return;
 
-                if (this.selectedPiece.dataset.rotated === 'true') {
-                    this.selectedPiece.style.transform = 'rotate(0deg)';
-                    this.selectedPiece.dataset.rotated = 'false';
-                } else {
-                    this.selectedPiece.style.transform = 'rotate(180deg)';
-                    this.selectedPiece.dataset.rotated = 'true';
-                }
+                const pieceId = this.selectedPiece.dataset.pieceId;
 
-                // 如果碎片在格子里，更新所有格子状态
-                if (this.selectedPiece.classList.contains('puzzle-piece')) {
-                    this.updateAllCellsCorrect();
-                    this.checkCompletion();
+                try {
+                    const gameState = await this.apiClient.rotatePiece(pieceId);
+                    this.updateGameState(gameState);
+                } catch (error) {
+                    alert('旋转失败: ' + error.message);
                 }
             }
             
@@ -1938,68 +2006,49 @@
             }
             
             // 打乱碎片
-            shufflePieces() {
-                if (this.pieceData.length === 0) return;
-                
-                this.cells.forEach(cell => {
-                    const piece = cell.querySelector('.puzzle-piece');
-                    if (piece) piece.remove();
-                    cell.style.border = '1px dashed #ccc';
-                    cell.classList.remove('correct');
-                });
-                
-                this.piecesContainer.innerHTML = '';
-                const shuffled = [...this.pieceData].sort(() => Math.random() - 0.5);
-                
-                shuffled.forEach(piece => {
-                    const pieceDiv = document.createElement('div');
-                    pieceDiv.className = 'piece-item';
-                    pieceDiv.style.backgroundImage = `url(${piece.dataURL})`;
-                    pieceDiv.dataset.pieceId = piece.id;
-                    pieceDiv.dataset.originalRow = piece.originalRow;
-                    pieceDiv.dataset.originalCol = piece.originalCol;
-                    pieceDiv.addEventListener('click', (e) => this.onPieceClick(e, pieceDiv));
-                    this.bindDragEvents(pieceDiv);
-                    this.piecesContainer.appendChild(pieceDiv);
-                });
-                
-                this.moveCount = 0;
-                this.gameState = 'playing';
-                this.clearSelection();
-                this.messageEl.textContent = '碎片已打乱，重新开始！';
-            }
-            
-            // 自动完成
-            solvePuzzle() {
-                if (this.pieceData.length === 0) return;
-                
-                this.piecesContainer.innerHTML = '';
-                
-                for (let row = 0; row < this.gridSize; row++) {
-                    for (let col = 0; col < this.gridSize; col++) {
-                        const index = row * this.gridSize + col;
-                        const cell = this.cells[index];
-                        cell.innerHTML = '';
-                        
-                        const targetData = this.pieceData.find(p => p.originalRow === row && p.originalCol === col);
-                        if (targetData) {
-                            const piece = document.createElement('div');
-                            piece.className = 'puzzle-piece';
-                            piece.style.backgroundImage = `url(${targetData.dataURL})`;
-                            piece.dataset.originalRow = row;
-                            piece.dataset.originalCol = col;
-                            cell.appendChild(piece);
-                            cell.style.border = 'none';
-                            cell.classList.add('correct');
-                        }
-                    }
+            async shufflePieces() {
+                try {
+                    const gameState = await this.apiClient.shuffle();
+                    this.updateGameState(gameState);
+                } catch (error) {
+                    alert('重新打乱失败: ' + error.message);
                 }
-                
-                this.gameState = 'completed';
-                this.stopTimer();
-                this.showComplete();
             }
-            
+
+            // 自动完成
+            async solvePuzzle() {
+                try {
+                    const gameState = await this.apiClient.solve();
+                    this.updateGameState(gameState);
+                } catch (error) {
+                    alert('自动完成失败: ' + error.message);
+                }
+            }
+
+            // 更新游戏状态
+            updateGameState(gameState) {
+                this.gameState = gameState.gameState;
+                this.moveCount = gameState.moveCount;
+
+                // 清空当前界面
+                this.gridContainer.innerHTML = '';
+                this.piecesContainer.innerHTML = '';
+
+                // 重新渲染
+                this.renderGameState(gameState);
+
+                // 更新消息
+                if (gameState.gameState === 'completed') {
+                    this.stopTimer();
+                    this.showComplete();
+                } else {
+                    this.messageEl.textContent = gameState.message || '点按碎片，再点按格子放置';
+                }
+
+                // 清除选择
+                this.clearSelection();
+            }
+
             // 检查完成度
             checkCompletion() {
                 if (!this.cells.length) return;
@@ -2402,6 +2451,7 @@
     </script>
 
     <!-- 心理分析报告功能 -->
+    <script src="puzzle-client.js"></script>
     <script src="frontend-integration.js"></script>
 
     <!-- 绑定心理分析报告按钮 -->

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import handler from './api/generate_report.js';
 import { AnalyticsStore } from './analytics_store.js';
 import { PuzzleEngine, PuzzleError } from './puzzle_engine.js';
+import { validateImageSource } from './image_validator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,15 +25,39 @@ const analyticsStore = new AnalyticsStore(
 const puzzleEngine = new PuzzleEngine();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static('.'));
+
+// ==================== 图片校验 API ====================
+
+// 校验图片是否包含房树人三要素
+app.post('/api/validate-image', async (req, res) => {
+  try {
+    const { imageSource } = req.body;
+    const check = await validateImageSource(imageSource);
+    res.json({ success: true, data: check });
+  } catch (error) {
+    console.error('图片校验失败:', error);
+    res.status(500).json({ success: false, error: '图片校验失败: ' + error.message });
+  }
+});
 
 // ==================== 拼图 API ====================
 
 // 创建游戏
-app.post('/api/puzzle/games', (req, res) => {
+app.post('/api/puzzle/games', async (req, res) => {
   try {
     const { imageSource, gridSize, modifiers, clientId } = req.body;
+
+    // 校验图片
+    const imageCheck = await validateImageSource(imageSource);
+    if (!imageCheck.valid) {
+      return res.status(400).json({
+        success: false,
+        error: imageCheck.message,
+        imageCheck: imageCheck
+      });
+    }
 
     const gameState = puzzleEngine.createGame(imageSource, gridSize, modifiers);
 
@@ -135,6 +160,7 @@ app.all('/api/generate_report', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
   console.log(`API endpoints:`);
+  console.log(`  - POST   /api/validate-image - 校验图片三要素`);
   console.log(`  - POST   /api/puzzle/games - 创建游戏`);
   console.log(`  - GET    /api/puzzle/games/:gameId - 获取游戏状态`);
   console.log(`  - POST   /api/puzzle/games/:gameId/actions - 执行动作`);
