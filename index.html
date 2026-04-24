@@ -881,11 +881,229 @@
         .btn-survey:active {
             transform: scale(0.98);
         }
+
+        /* 管理员按钮 */
+        .admin-btn {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            background: rgba(255,255,255,0.95);
+            color: #667eea;
+            border: none;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            border-radius: 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        /* 未读徽章样式 */
+        .unread-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ff4444;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(255,68,68,0.4);
+        }
+
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .modal-header h3 {
+            color: #667eea;
+            font-size: 1.2rem;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #999;
+        }
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        /* 输入框样式 */
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 0.95rem;
+        }
+        .input-group input[type="password"] {
+            letter-spacing: 3px;
+        }
+
+        /* 报告列表样式 */
+        .report-list {
+            list-style: none;
+        }
+        .report-item {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .report-item:hover {
+            background: #f0f0f0;
+            transform: translateX(5px);
+        }
+        .report-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .report-item-time {
+            font-size: 0.85rem;
+            color: #999;
+        }
+        .report-item-preview {
+            font-size: 0.9rem;
+            color: #666;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* 对话界面样式 */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 500px;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        .chat-message {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+        .chat-message.user {
+            background: #667eea;
+            color: white;
+            margin-left: auto;
+        }
+        .chat-message.assistant {
+            background: white;
+            color: #333;
+        }
+        .chat-message.system {
+            background: #fff3cd;
+            color: #856404;
+            font-size: 0.85rem;
+            max-width: 100%;
+        }
+        .chat-input-area {
+            display: flex;
+            gap: 10px;
+        }
+        .chat-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 0.95rem;
+        }
+        .chat-send-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        /* 加载动画 */
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
     <!-- ==================== 第一页：主界面 ==================== -->
     <div class="page page-home active" id="pageHome">
+        <!-- 管理员按钮 -->
+        <button class="admin-btn" id="adminBtn">🔐 管理员</button>
+
         <div class="home-header">
             <h1>🏠🌳🧑 房树人拼图游戏</h1>
             <p>有趣的图片拼图益智游戏</p>
@@ -1101,6 +1319,7 @@
             </div>
             <div class="complete-btns">
                 <button class="btn btn-primary" id="viewReportBtn" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">📊 查看心理分析报告</button>
+                <button class="btn btn-success" id="healingBtn" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">💚 心理疗愈</button>
                 <button class="btn btn-primary" id="playAgainBtn">🔄 再玩一次</button>
                 <button class="btn btn-secondary" id="backHomeBtn">🏠 返回主页</button>
                 <button class="btn btn-survey" id="surveyBtn">📋 问卷调查</button>
@@ -1112,6 +1331,103 @@
     <div class="survey-modal" id="surveyModal">
         <button class="survey-close" id="closeSurvey">✕</button>
         <img src="photo/survey.jpg" alt="问卷调查">
+    </div>
+
+    <!-- 管理员登录模态框 -->
+    <div class="modal" id="adminLoginModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🔐 管理员登录</h3>
+                <button class="modal-close" id="closeAdminLogin">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label>管理员密码</label>
+                    <input type="password" id="adminPassword" placeholder="请输入管理员密码">
+                </div>
+                <button class="btn btn-primary" id="adminLoginBtn" style="width: 100%;">登录</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 管理员面板模态框 -->
+    <div class="modal" id="adminPanelModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📊 管理员面板</h3>
+                <button class="modal-close" id="closeAdminPanel">×</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px; color: #666;">导出所有心理测试数据为Excel表格</p>
+                <button class="btn btn-success" id="exportDataBtn" style="width: 100%;">📥 导出数据</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 心理疗愈列表模态框 -->
+    <div class="modal" id="healingListModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>💚 选择报告进行疗愈</h3>
+                <button class="modal-close" id="closeHealingList">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="healingListContent">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>加载中...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 心理疗愈对话模态框 -->
+    <div class="modal" id="healingChatModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>💚 心理疗愈对话</h3>
+                <button class="modal-close" id="closeHealingChat">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="chat-container">
+                    <div class="chat-messages" id="chatMessages"></div>
+                    <div class="chat-input-area">
+                        <input type="text" class="chat-input" id="chatInput" placeholder="输入您的问题...">
+                        <button class="chat-send-btn" id="chatSendBtn">发送</button>
+                    </div>
+                    <p id="questionCounter" style="text-align: center; margin-top: 10px; color: #999; font-size: 0.85rem;">剩余提问次数: 3</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户信息提交模态框 -->
+    <div class="modal" id="userInfoModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📝 提交信息</h3>
+                <button class="modal-close" id="closeUserInfo">×</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px; color: #666;">对话已结束，请填写您的信息（可选择匿名）</p>
+                <div class="input-group">
+                    <label>姓名</label>
+                    <input type="text" id="userName" placeholder="请输入姓名">
+                </div>
+                <div class="input-group">
+                    <label>学号</label>
+                    <input type="text" id="userStudentId" placeholder="请输入学号">
+                </div>
+                <div class="input-group">
+                    <label>
+                        <input type="checkbox" id="isAnonymous" checked>
+                        匿名提交
+                    </label>
+                </div>
+                <button class="btn btn-primary" id="submitUserInfoBtn" style="width: 100%;">提交</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -2460,6 +2776,9 @@
     <!-- 心理分析报告功能 -->
     <script src="puzzle-client.js"></script>
     <script src="frontend-integration.js"></script>
+
+    <!-- 管理员和心理疗愈功能 -->
+    <script src="admin-healing.js"></script>
 
     <!-- 绑定心理分析报告按钮 -->
     <script>

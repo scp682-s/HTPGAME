@@ -8,6 +8,7 @@ window.API_BASE_URL = window.location.hostname === 'localhost' || window.locatio
 // 报告历史记录管理
 const ReportHistory = {
   storageKey: 'psychologyReports',
+  unreadKey: 'unreadReports',
 
   // 获取所有报告
   getAll() {
@@ -18,20 +19,70 @@ const ReportHistory = {
   // 保存报告
   save(report) {
     const reports = this.getAll();
-    reports.unshift({
+    const newReport = {
       id: Date.now(),
       timestamp: new Date().toISOString(),
+      unread: true,
       ...report
-    });
+    };
+    reports.unshift(newReport);
     // 最多保存20条
     if (reports.length > 20) reports.pop();
     localStorage.setItem(this.storageKey, JSON.stringify(reports));
+    this.updateUnreadBadge();
   },
 
   // 删除报告
   delete(id) {
     const reports = this.getAll().filter(r => r.id !== id);
     localStorage.setItem(this.storageKey, JSON.stringify(reports));
+    this.updateUnreadBadge();
+  },
+
+  // 标记报告为已读
+  markAsRead(id) {
+    const reports = this.getAll();
+    const report = reports.find(r => r.id === id);
+    if (report) {
+      report.unread = false;
+      localStorage.setItem(this.storageKey, JSON.stringify(reports));
+      this.updateUnreadBadge();
+    }
+  },
+
+  // 标记所有报告为已读
+  markAllAsRead() {
+    const reports = this.getAll();
+    reports.forEach(r => r.unread = false);
+    localStorage.setItem(this.storageKey, JSON.stringify(reports));
+    this.updateUnreadBadge();
+  },
+
+  // 获取未读数量
+  getUnreadCount() {
+    return this.getAll().filter(r => r.unread).length;
+  },
+
+  // 更新未读徽章
+  updateUnreadBadge() {
+    const btn = document.getElementById('viewReportBtn');
+    if (!btn) return;
+
+    let badge = btn.querySelector('.unread-badge');
+    const unreadCount = this.getUnreadCount();
+
+    if (unreadCount > 0) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'unread-badge';
+        btn.style.position = 'relative';
+        btn.appendChild(badge);
+      }
+      badge.textContent = unreadCount;
+      badge.style.display = 'block';
+    } else if (badge) {
+      badge.style.display = 'none';
+    }
   }
 };
 
@@ -44,6 +95,9 @@ function showReportHistory() {
     generateNewReport();
     return;
   }
+
+  // 标记所有报告为已读
+  ReportHistory.markAllAsRead();
 
   // 创建历史列表弹窗
   const modal = document.getElementById('reportModal');
@@ -142,11 +196,17 @@ window.generateNewReport = async function() {
 
   const modal = document.getElementById('reportModal');
   const reportText = document.getElementById('reportText');
+  const btn = document.getElementById('viewReportBtn');
 
   if (!modal || !reportText) {
     alert('报告弹窗未找到');
     return;
   }
+
+  // 按钮显示加载状态
+  const originalBtnText = btn.innerHTML;
+  btn.innerHTML = '⏳ 正在生成报告...';
+  btn.disabled = true;
 
   // 先显示弹窗和加载提示
   reportText.innerHTML = '<div style="text-align:center; padding:40px;"><div style="font-size:2rem; margin-bottom:10px;">🔄</div><div>正在生成心理分析报告...</div></div>';
@@ -176,6 +236,10 @@ window.generateNewReport = async function() {
     }
   } catch (err) {
     reportText.innerHTML = '<div style="color:#e74c3c; text-align:center; padding:20px;">网络错误：' + err.message + '</div>';
+  } finally {
+    // 恢复按钮状态
+    btn.innerHTML = originalBtnText;
+    btn.disabled = false;
   }
 };
 
@@ -200,3 +264,10 @@ async function generatePsychologyReport() {
 
 // 暴露给全局
 window.generatePsychologyReport = generatePsychologyReport;
+
+// 页面加载时更新未读徽章
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(() => {
+    ReportHistory.updateUnreadBadge();
+  }, 1000);
+});

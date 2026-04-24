@@ -134,6 +134,44 @@ class AnalyticsStore {
       CREATE INDEX IF NOT EXISTS idx_report_logs_client_time
       ON report_logs(client_id, created_at DESC)
     `);
+
+    // 创建 healing_sessions 表
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS healing_sessions (
+        session_id TEXT PRIMARY KEY,
+        client_id TEXT NOT NULL,
+        report_id INTEGER,
+        report_content TEXT,
+        question_count INTEGER DEFAULT 0,
+        user_name TEXT,
+        user_student_id TEXT,
+        is_anonymous INTEGER DEFAULT 1,
+        is_deleted INTEGER DEFAULT 0,
+        created_at REAL NOT NULL,
+        updated_at REAL NOT NULL
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_healing_sessions_client
+      ON healing_sessions(client_id, created_at DESC)
+    `);
+
+    // 创建 healing_messages 表
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS healing_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at REAL NOT NULL
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_healing_messages_session
+      ON healing_messages(session_id, created_at ASC)
+    `);
   }
 
   /**
@@ -409,6 +447,162 @@ class AnalyticsStore {
     }
 
     return summary;
+  }
+
+  /**
+   * 获取用户的报告列表
+   */
+  getReportsByClient(clientId, limit = 50) {
+    const normalized = normalizeClientId(clientId);
+    const stmt = this.db.prepare(`
+      SELECT
+        id,
+        game_id,
+        image_source,
+        report_text,
+        created_at
+      FROM report_logs
+      WHERE client_id = ?
+      ORDER BY created_at DESC
+      LIMIT ?
+    `);
+
+    const reports = stmt.all(normalized, limit);
+    return reports.map(r => ({
+      id: r.id,
+      game_id: r.game_id,
+      image_source: r.image_source,
+      reportText: r.report_text,
+      created_at: r.created_at,
+      createdAtFormatted: new Date(r.created_at * 1000).toLocaleString('zh-CN')
+    }));
+  }
+
+  /**
+   * 创建心理疗愈会话
+   */
+  createHealingSession(sessionId, clientId, reportId, reportContent) {
+    const normalized = normalizeClientId(clientId);
+    const now = Date.now() / 1000;
+
+    const stmt = this.db.prepare(`
+      INSERT INTO healing_sessions (
+        session_id, client_id, report_id, report_content,
+        question_count, is_anonymous, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, 0, 1, ?, ?)
+    `);
+
+    stmt.run(sessionId, normalized, reportId, reportContent, now, now);
+    this.upsertUser(normalized);
+  }
+
+  /**
+   * 添加疗愈消息
+   */
+  addHealingMessage(sessionId, role, content) {
+    const now = Date.now() / 1000;
+
+    const stmt = this.db.prepare(`
+      INSERT INTO healing_messages (session_id, role, content, created_at)
+      VALUES (?, ?, ?, ?)
+    `);
+
+    stmt.run(sessionId, role, content, now);
+
+    // 更新会话的 updated_at
+    this.db.prepare('UPDATE healing_sessions SET updated_at = ? WHERE session_id = ?')
+      .run(now, sessionId);
+  }
+
+  /**
+   * 获取疗愈消息历史
+   */
+  getHealingMessages(sessionId) {
+    const stmt = this.db.prepare(`
+      SELECT role, content, created_at
+      FROM healing_messages
+      WHERE session_id = ?
+      ORDER BY created_at ASC
+    `);
+
+    return stmt.all(sessionId);
+  }
+
+  /**
+   * 获取问题计数
+   */
+  getQuestionCount(sessionId) {
+    const stmt = this.db.prepare('SELECT question_count FROM healing_sessions WHERE session_id = ?');
+    const result = stmt.get(sessionId);
+    return result ? result.question_count : 0;
+  }
+
+  /**
+   * 增加问题计数
+   */
+  incrementQuestionCount(sessionId) {
+    const now = Date.now() / 1000;
+    const stmt = this.db.prepare(`
+      UPDATE healing_sessions
+      SET question_count = question_count + 1, updated_at = ?
+      WHERE session_id = ?
+    `);
+    stmt.run(now, sessionId);
+
+    return this.getQuestionCount(sessionId);
+  }
+
+  /**
+   * 更新用户信息
+   */
+  updateHealingUserInfo(sessionId, userName, userStudentId, isAnonymous) {
+    const now = Date.now() / 1000;
+    const stmt = this.db.prepare(`
+      UPDATE healing_sessions
+      SET user_name = ?, user_student_id = ?, is_anonymous = ?, updated_at = ?
+      WHERE session_id = ?
+    `);
+
+    stmt.run(userName, userStudentId, isAnonymous ? 1 : 0, now, sessionId);
+  }
+
+  /**
+   * 获取所有疗愈数据（用于管理员导出）
+   */
+  getAllHealingData() {
+    const stmt = this.db.prepare(`
+      SELECT
+        hs.session_id,
+        hs.client_id,
+        hs.report_id,
+        hs.report_content,
+        hs.question_count,
+        hs.user_name,
+        hs.user_student_id,
+        hs.is_anonymous,
+        hs.created_at,
+        hs.updated_at
+      FROM healing_sessions hs
+      WHERE hs.is_deleted = 0
+      ORDER BY hs.created_at DESC
+    `);
+
+    const sessions = stmt.all();
+
+    // 获取每个会话的用户问题
+    return sessions.map(session => {
+      const messagesStmt = this.db.prepare(`
+        SELECT content FROM healing_messages
+        WHERE session_id = ? AND role = 'user'
+        ORDER BY created_at ASC
+      `);
+      const messages = messagesStmt.all(session.session_id);
+
+      return {
+        ...session,
+        questions: messages.map(m => m.content)
+      };
+    });
   }
 
   /**
