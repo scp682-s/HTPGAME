@@ -1519,9 +1519,9 @@
                 pieceDiv.dataset.originalCol = piece.originalCol;
 
                 // 旋转状态
-                const rotation = trayPiece ? trayPiece.rotation : 0;
-                if (rotation !== 0) {
-                    pieceDiv.style.transform = `rotate(${rotation}deg)`;
+                const isRotated = trayPiece ? trayPiece.rotated : false;
+                if (isRotated) {
+                    pieceDiv.style.transform = 'rotate(180deg)';
                     pieceDiv.dataset.rotated = 'true';
                 }
 
