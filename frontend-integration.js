@@ -1,24 +1,103 @@
 // frontend-integration.js
 
-// 逐字显示函数
-function typewriterEffect(element, text, speed = 50) {
-  element.textContent = '';
-  let index = 0;
+// 报告历史记录管理
+const ReportHistory = {
+  storageKey: 'psychologyReports',
 
-  return new Promise((resolve) => {
-    const timer = setInterval(() => {
-      if (index < text.length) {
-        element.textContent += text.charAt(index);
-        index++;
-      } else {
-        clearInterval(timer);
-        resolve();
-      }
-    }, speed);
+  // 获取所有报告
+  getAll() {
+    const data = localStorage.getItem(this.storageKey);
+    return data ? JSON.parse(data) : [];
+  },
+
+  // 保存报告
+  save(report) {
+    const reports = this.getAll();
+    reports.unshift({
+      id: Date.now(),
+      timestamp: new Date().toISOString(),
+      ...report
+    });
+    // 最多保存20条
+    if (reports.length > 20) reports.pop();
+    localStorage.setItem(this.storageKey, JSON.stringify(reports));
+  },
+
+  // 删除报告
+  delete(id) {
+    const reports = this.getAll().filter(r => r.id !== id);
+    localStorage.setItem(this.storageKey, JSON.stringify(reports));
+  }
+};
+
+// 显示报告历史列表
+function showReportHistory() {
+  const reports = ReportHistory.getAll();
+
+  if (reports.length === 0) {
+    // 没有历史记录，直接生成新报告
+    generateNewReport();
+    return;
+  }
+
+  // 创建历史列表弹窗
+  const modal = document.getElementById('reportModal');
+  const reportText = document.getElementById('reportText');
+
+  let html = '<div style="max-height:400px; overflow-y:auto;">';
+  html += '<h4 style="color:#667eea; margin-bottom:15px;">📋 历史报告记录</h4>';
+
+  reports.forEach((report, index) => {
+    const date = new Date(report.timestamp);
+    const dateStr = `${date.getMonth()+1}月${date.getDate()}日 ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}`;
+    html += `
+      <div style="border:1px solid #e0e0e0; border-radius:10px; padding:12px; margin-bottom:10px; cursor:pointer; transition:all 0.2s;"
+           onmouseover="this.style.background='#f5f5f5'"
+           onmouseout="this.style.background='white'"
+           onclick="viewReport(${report.id})">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:500; color:#333;">报告 #${reports.length - index}</div>
+            <div style="font-size:0.85rem; color:#666; margin-top:4px;">
+              ${dateStr} | ${report.grid_size}×${report.grid_size} | ${report.moves}步
+            </div>
+          </div>
+          <button onclick="event.stopPropagation(); deleteReport(${report.id})"
+                  style="background:#ff4444; color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.85rem;">
+            删除
+          </button>
+        </div>
+      </div>
+    `;
   });
+
+  html += '</div>';
+  html += '<button onclick="generateNewReport()" style="margin-top:15px; width:100%; padding:12px; background:#2ecc71; color:white; border:none; border-radius:10px; font-size:1rem; cursor:pointer;">➕ 生成新报告</button>';
+
+  reportText.innerHTML = html;
+  modal.style.display = 'flex';
 }
 
-async function generatePsychologyReport() {
+// 查看历史报告
+window.viewReport = function(id) {
+  const reports = ReportHistory.getAll();
+  const report = reports.find(r => r.id === id);
+  if (!report) return;
+
+  const reportText = document.getElementById('reportText');
+  reportText.innerHTML = report.content;
+};
+
+// 删除报告
+window.deleteReport = function(id) {
+  if (confirm('确定要删除这条报告吗？')) {
+    ReportHistory.delete(id);
+    showReportHistory();
+  }
+};
+
+// 生成新报告
+window.generateNewReport = async function() {
   const game = window.puzzleGame;
   if (!game || game.gameState !== 'completed') {
     alert('请先完成一局游戏');
@@ -47,7 +126,7 @@ async function generatePsychologyReport() {
   }
 
   // 先显示弹窗和加载提示
-  reportText.textContent = '正在生成心理分析报告...';
+  reportText.innerHTML = '<div style="text-align:center; padding:40px;"><div style="font-size:2rem; margin-bottom:10px;">🔄</div><div>正在生成心理分析报告...</div></div>';
   modal.style.display = 'flex';
 
   try {
@@ -59,13 +138,40 @@ async function generatePsychologyReport() {
     const result = await response.json();
 
     if (result.success) {
-      // 逐字显示报告
-      await typewriterEffect(reportText, result.report, 50);
+      // 保存到历史记录
+      ReportHistory.save({
+        content: result.report,
+        grid_size: data.grid_size,
+        moves: data.moves,
+        time_seconds: data.time_seconds
+      });
+
+      // 直接显示HTML内容
+      reportText.innerHTML = result.report;
     } else {
-      reportText.textContent = '生成报告失败：' + result.error;
+      reportText.innerHTML = '<div style="color:#e74c3c; text-align:center; padding:20px;">生成报告失败：' + result.error + '</div>';
     }
   } catch (err) {
-    reportText.textContent = '网络错误：' + err.message;
+    reportText.innerHTML = '<div style="color:#e74c3c; text-align:center; padding:20px;">网络错误：' + err.message + '</div>';
+  }
+};
+
+// 主入口函数
+async function generatePsychologyReport() {
+  const game = window.puzzleGame;
+  if (!game || game.gameState !== 'completed') {
+    alert('请先完成一局游戏');
+    return;
+  }
+
+  // 检查是否有历史记录
+  const reports = ReportHistory.getAll();
+  if (reports.length > 0) {
+    // 有历史记录，显示列表
+    showReportHistory();
+  } else {
+    // 没有历史记录，直接生成新报告
+    generateNewReport();
   }
 }
 

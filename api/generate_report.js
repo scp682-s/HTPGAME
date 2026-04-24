@@ -52,7 +52,7 @@ export default async function handler(req, res) {
 
     // 构建提示词（使用新模板）
     const prompt = `
-你是一位资深房树人心理投射分析专家，用户刚刚完成了一款"房树人拼图游戏"。请根据以下游戏数据，写一段不超过300字的个性化心理分析报告。
+你是一位资深房树人心理投射分析专家，用户刚刚完成了一款"房树人拼图游戏"。请根据以下游戏数据，生成一份个性化心理分析报告。
 
 【游戏数据】
 - 图片主题：${image_name}
@@ -63,18 +63,35 @@ export default async function handler(req, res) {
 - 行为特征：${behaviorTraits(moves, time_seconds, grid_size)}
 
 【房树人心理分析理论要点】
-- 房子：代表家庭安全感、对家庭的态度。拼图中房子部分放置准确、步数少 → 家庭安全感强；反复调整 → 可能对家庭角色有思考或不确定。
-- 树：代表生命力、成长经历、自我发展。树干稳固、树冠茂盛 → 生命力旺盛；若拼图时树的部分犹豫 → 可能在成长中经历过挑战。
-- 人：代表自我认知、人际关系。人物拼图果断 → 自我接纳度高；反复修正 → 可能对自我形象有较高要求或正在探索。
+- 🏠 房子：代表家庭安全感、对家庭的态度。拼图中房子部分放置准确、步数少 → 家庭安全感强；反复调整 → 可能对家庭角色有思考或不确定。
+- 🌳 树：代表生命力、成长经历、自我发展。树干稳固、树冠茂盛 → 生命力旺盛；若拼图时树的部分犹豫 → 可能在成长中经历过挑战。
+- 🧑 人：代表自我认知、人际关系。人物拼图果断 → 自我接纳度高；反复修正 → 可能对自我形象有较高要求或正在探索。
 
-【分析要求】
-1. 语气温暖、鼓励，避免生硬说教。
-2. 结合用户的具体数据（例如用时短/步数少 → 高效、果断；用时长/步数多 → 细致、周密）。
-3. 给出1-2条贴合用户表现的成长建议（与房树人意象相关）。
-4. 整体字数控制在300字以内。
+【输出格式要求】
+1. 首先输出一个表格，包含游戏数据（使用HTML表格格式）
+2. 然后输出分析内容，包含以下结构：
+   - <h3>🎯 游戏表现概述</h3>
+   - <h3>🌸 心理特质分析</h3> (使用🌺🌻🌷等花草图案装饰关键词)
+   - <h3>💡 成长建议</h3>
+3. 在分析中使用<span style="color:#e74c3c">红色</span>、<span style="color:#3498db">蓝色</span>、<span style="color:#2ecc71">绿色</span>等颜色标注重要特质词汇
+4. 整体字数控制在400字以内
+5. 语气温暖、鼓励，避免生硬说教
 
-【输出格式】
-直接输出分析正文，不要加额外说明或标题。
+【示例格式】
+<table style="width:100%; border-collapse:collapse; margin:20px 0;">
+<tr><td style="padding:8px; border:1px solid #ddd; background:#f5f5f5;">难度</td><td style="padding:8px; border:1px solid #ddd;">${grid_size}×${grid_size}</td></tr>
+<tr><td style="padding:8px; border:1px solid #ddd; background:#f5f5f5;">用时</td><td style="padding:8px; border:1px solid #ddd;">${minutes}分${seconds}秒</td></tr>
+<tr><td style="padding:8px; border:1px solid #ddd; background:#f5f5f5;">步数</td><td style="padding:8px; border:1px solid #ddd;">${moves}步</td></tr>
+</table>
+
+<h3>🎯 游戏表现概述</h3>
+<p>您在${grid_size}×${grid_size}难度下...</p>
+
+<h3>🌸 心理特质分析</h3>
+<p>从您的拼图过程中，我们观察到您展现出<span style="color:#e74c3c">高效决策</span>🌺的特质...</p>
+
+<h3>💡 成长建议</h3>
+<p>建议您...</p>
 `;
 
     // 调用 AI
@@ -85,7 +102,7 @@ export default async function handler(req, res) {
         { role: 'user', content: prompt }
       ],
       temperature: 0.7,
-      max_tokens: 500
+      max_tokens: 2000
     });
 
     const report = completion.choices[0].message.content;
