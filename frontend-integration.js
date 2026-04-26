@@ -3,7 +3,7 @@
 // 设置 API 基础 URL
 window.API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:3001'
-  : '';
+  : 'http://43.160.201.4:3001';
 
 // 报告历史记录管理
 const ReportHistory = {
