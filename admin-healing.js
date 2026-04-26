@@ -287,15 +287,34 @@ class HealingManager {
 
     // 删除会话
     async deleteSession(reportId) {
-        if (!confirm('确定要删除这个疗愈会话吗？')) {
+        if (!confirm('确定要删除这个报告吗？删除后将无法恢复。')) {
             return;
         }
 
-        const sessionKey = `healing_session_${reportId}`;
-        localStorage.removeItem(sessionKey);
+        try {
+            // 调用后端 API 软删除报告
+            const response = await fetch(window.API_BASE_URL + '/api/reports/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reportId })
+            });
 
-        // 重新加载列表
-        this.showHealingList();
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                // 删除本地会话数据
+                const sessionKey = `healing_session_${reportId}`;
+                localStorage.removeItem(sessionKey);
+
+                // 重新加载列表
+                this.showHealingList();
+                alert('删除成功');
+            } else {
+                alert('删除失败: ' + (result.error || '未知错误'));
+            }
+        } catch (error) {
+            alert('删除失败: ' + error.message);
+        }
     }
 
     async startHealing(reportId, reportContent) {

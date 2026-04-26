@@ -169,6 +169,18 @@ app.post('/api/reports/list', async (req, res) => {
   }
 });
 
+// 软删除报告
+app.post('/api/reports/delete', async (req, res) => {
+  try {
+    const { reportId } = req.body;
+    await analyticsStore.softDeleteReport(reportId);
+    res.json({ success: true, message: '删除成功' });
+  } catch (error) {
+    console.error('删除报告失败:', error);
+    res.status(500).json({ success: false, error: '删除报告失败' });
+  }
+});
+
 // ==================== 管理员 API ====================
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '123456';

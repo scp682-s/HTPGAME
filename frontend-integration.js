@@ -90,12 +90,6 @@ const ReportHistory = {
 function showReportHistory() {
   const reports = ReportHistory.getAll();
 
-  if (reports.length === 0) {
-    // 没有历史记录，直接生成新报告
-    generateNewReport();
-    return;
-  }
-
   // 标记所有报告为已读
   ReportHistory.markAllAsRead();
 
@@ -106,29 +100,33 @@ function showReportHistory() {
   let html = '<div style="max-height:400px; overflow-y:auto;">';
   html += '<h4 style="color:#667eea; margin-bottom:15px;">📋 历史报告记录</h4>';
 
-  reports.forEach((report, index) => {
-    const date = new Date(report.timestamp);
-    const dateStr = `${date.getMonth()+1}月${date.getDate()}日 ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}`;
-    html += `
-      <div style="border:1px solid #e0e0e0; border-radius:10px; padding:12px; margin-bottom:10px; cursor:pointer; transition:all 0.2s;"
-           onmouseover="this.style.background='#f5f5f5'"
-           onmouseout="this.style.background='white'"
-           onclick="viewReport(${report.id})">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div>
-            <div style="font-weight:500; color:#333;">报告 #${reports.length - index}</div>
-            <div style="font-size:0.85rem; color:#666; margin-top:4px;">
-              ${dateStr} | ${report.grid_size}×${report.grid_size} | ${report.moves}步
+  if (reports.length === 0) {
+    html += '<p style="text-align:center; color:#999; padding:40px 0;">暂无报告记录</p>';
+  } else {
+    reports.forEach((report, index) => {
+      const date = new Date(report.timestamp);
+      const dateStr = `${date.getMonth()+1}月${date.getDate()}日 ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}`;
+      html += `
+        <div style="border:1px solid #e0e0e0; border-radius:10px; padding:12px; margin-bottom:10px; cursor:pointer; transition:all 0.2s;"
+             onmouseover="this.style.background='#f5f5f5'"
+             onmouseout="this.style.background='white'"
+             onclick="viewReport(${report.id})">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:500; color:#333;">报告 #${reports.length - index}</div>
+              <div style="font-size:0.85rem; color:#666; margin-top:4px;">
+                ${dateStr} | ${report.grid_size}×${report.grid_size} | ${report.moves}步
+              </div>
             </div>
+            <button onclick="event.stopPropagation(); deleteReport(${report.id})"
+                    style="background:#ff4444; color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.85rem;">
+              删除
+            </button>
           </div>
-          <button onclick="event.stopPropagation(); deleteReport(${report.id})"
-                  style="background:#ff4444; color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.85rem;">
-            删除
-          </button>
         </div>
-      </div>
-    `;
-  });
+      `;
+    });
+  }
 
   html += '</div>';
   html += '<button onclick="generateNewReport()" style="margin-top:15px; width:100%; padding:12px; background:#2ecc71; color:white; border:none; border-radius:10px; font-size:1rem; cursor:pointer;">➕ 生成新报告</button>';

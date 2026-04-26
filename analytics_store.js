@@ -126,9 +126,17 @@ class AnalyticsStore {
         image_source TEXT,
         prompt_text TEXT,
         report_text TEXT,
+        is_deleted INTEGER DEFAULT 0,
         created_at REAL NOT NULL
       )
     `);
+
+    // 为已存在的表添加 is_deleted 字段（如果不存在）
+    try {
+      this.db.exec(`ALTER TABLE report_logs ADD COLUMN is_deleted INTEGER DEFAULT 0`);
+    } catch (e) {
+      // 字段已存在，忽略错误
+    }
 
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_report_logs_client_time
@@ -450,7 +458,7 @@ class AnalyticsStore {
   }
 
   /**
-   * 获取用户的报告列表
+   * 获取用户的报告列表（只返回未删除的）
    */
   getReportsByClient(clientId, limit = 50) {
     const normalized = normalizeClientId(clientId);
@@ -462,7 +470,7 @@ class AnalyticsStore {
         report_text,
         created_at
       FROM report_logs
-      WHERE client_id = ?
+      WHERE client_id = ? AND (is_deleted = 0 OR is_deleted IS NULL)
       ORDER BY created_at DESC
       LIMIT ?
     `);
@@ -603,6 +611,18 @@ class AnalyticsStore {
         questions: messages.map(m => m.content)
       };
     });
+  }
+
+  /**
+   * 软删除报告（标记为已删除，但保留数据供管理员导出）
+   */
+  softDeleteReport(reportId) {
+    const stmt = this.db.prepare(`
+      UPDATE report_logs
+      SET is_deleted = 1
+      WHERE id = ?
+    `);
+    stmt.run(reportId);
   }
 
   /**
