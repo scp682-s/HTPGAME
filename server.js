@@ -267,8 +267,10 @@ app.get('/api/admin/export-data', async (req, res) => {
     worksheet.getRow(1).alignment = { horizontal: 'center', vertical: 'middle' };
 
     // 生成文件
+    const filename = `心理测试数据_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const encodedFilename = encodeURIComponent(filename);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=心理测试数据_${new Date().toISOString().split('T')[0]}.xlsx`);
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFilename}`);
 
     await workbook.xlsx.write(res);
     res.end();
