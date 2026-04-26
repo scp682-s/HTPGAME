@@ -2,7 +2,11 @@
 
 class PuzzleClient {
   constructor() {
-    this.apiBaseUrl = window.API_BASE_URL || 'http://localhost:3001';
+    // 如果 API_BASE_URL 是空字符串，使用空字符串（相对路径）
+    // 如果未定义，使用 localhost
+    this.apiBaseUrl = (typeof window.API_BASE_URL !== 'undefined')
+      ? window.API_BASE_URL
+      : 'http://localhost:3001';
     this.currentGame = null;
     this.clientId = this.getOrCreateClientId();
   }
