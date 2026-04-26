@@ -162,6 +162,7 @@ ${recentBehaviorSummary}
     const report = completion.choices[0].message.content;
 
     // 保存报告到数据库
+    console.log('准备保存报告, analyticsStore:', !!analyticsStore, 'client_id:', client_id);
     if (analyticsStore && client_id) {
       try {
         analyticsStore.saveReport({
@@ -171,10 +172,13 @@ ${recentBehaviorSummary}
           promptText: prompt,
           reportText: report
         });
+        console.log('报告保存成功, client_id:', client_id);
       } catch (dbError) {
         console.error('保存报告失败:', dbError);
         // 不影响返回结果
       }
+    } else {
+      console.log('跳过保存报告: analyticsStore=', !!analyticsStore, 'client_id=', client_id);
     }
 
     return res.status(200).json({
