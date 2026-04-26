@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import handler from './api/generate_report.js';
+import handler from './api_backup/generate_report.js';
 import { AnalyticsStore } from './analytics_store.js';
 import { PuzzleEngine, PuzzleError } from './puzzle_engine.js';
 import { validateImageSource } from './image_validator.js';
