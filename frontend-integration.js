@@ -110,6 +110,12 @@ async function showReportHistory() {
       result.reports.forEach(report => {
         const date = new Date(report.created_at * 1000);
         const dateStr = `${date.getMonth()+1}月${date.getDate()}日 ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}`;
+
+        // 只显示有效的数据
+        const gridSize = report.grid_size || 0;
+        const moves = report.moves || 0;
+        const detailStr = (gridSize > 0 && moves >= 0) ? `${gridSize}×${gridSize} | ${moves}步` : '';
+
         html += `
           <div style="border:1px solid #e0e0e0; border-radius:10px; padding:12px; margin-bottom:10px; cursor:pointer; transition:all 0.2s;"
                onmouseover="this.style.background='#f5f5f5'"
@@ -119,7 +125,7 @@ async function showReportHistory() {
               <div>
                 <div style="font-weight:500; color:#333;">报告 #${report.id}</div>
                 <div style="font-size:0.85rem; color:#666; margin-top:4px;">
-                  ${dateStr} | ${report.grid_size}×${report.grid_size} | ${report.moves}步
+                  ${dateStr}${detailStr ? ' | ' + detailStr : ''}
                 </div>
               </div>
               <button onclick="event.stopPropagation(); deleteReportFromDB(${report.id})"
@@ -306,7 +312,20 @@ window.viewReportFromDB = async function(id) {
 // 从数据库删除报告
 window.deleteReportFromDB = async function(id) {
   if (confirm('确定要删除这条报告吗？')) {
-    alert('删除功能待实现');
-    showReportHistory();
+    try {
+      const response = await fetch(window.API_BASE_URL + '/api/reports/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportId: id })
+      });
+      const result = await response.json();
+      if (response.ok && result.success) {
+        showReportHistory();
+      } else {
+        alert('删除失败');
+      }
+    } catch (error) {
+      alert('删除失败: ' + error.message);
+    }
   }
 };

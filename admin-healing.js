@@ -218,6 +218,11 @@ class HealingManager {
             const date = new Date(report.created_at * 1000);
             const dateStr = `${date.getMonth()+1}月${date.getDate()}日 ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}`;
 
+            // 只显示有效的数据
+            const gridSize = report.grid_size || 0;
+            const moves = report.moves || 0;
+            const detailStr = (gridSize > 0 && moves >= 0) ? `${gridSize}×${gridSize} | ${moves}步` : '';
+
             // 获取会话状态
             const sessionStatus = this.getSessionStatus(report.id);
             let buttonHtml = '';
@@ -240,7 +245,7 @@ class HealingManager {
                     <span class="report-item-time">${dateStr}</span>
                 </div>
                 <div style="font-size:0.85rem; color:#666; margin-top:4px;">
-                    ${report.grid_size}×${report.grid_size} | ${report.moves}步
+                    ${detailStr || ''}
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
                     <button class="healing-action-btn" style="${buttonStyle} flex: 1; padding: 8px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem;">
