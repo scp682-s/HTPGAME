@@ -169,7 +169,7 @@ app.post('/api/reports/list', async (req, res) => {
   }
 });
 
-// 软删除报告
+// 软删除报告（联动删除疗愈会话）
 app.post('/api/reports/delete', async (req, res) => {
   try {
     const { reportId } = req.body;
@@ -178,6 +178,18 @@ app.post('/api/reports/delete', async (req, res) => {
   } catch (error) {
     console.error('删除报告失败:', error);
     res.status(500).json({ success: false, error: '删除报告失败' });
+  }
+});
+
+// 软删除疗愈会话（联动删除报告）
+app.post('/api/healing/delete', async (req, res) => {
+  try {
+    const { reportId } = req.body;
+    await analyticsStore.softDeleteHealingSession(reportId);
+    res.json({ success: true, message: '删除成功' });
+  } catch (error) {
+    console.error('删除疗愈会话失败:', error);
+    res.status(500).json({ success: false, error: '删除疗愈会话失败' });
   }
 });
 
@@ -282,7 +294,7 @@ app.get('/api/admin/export-data', async (req, res) => {
     const filename = `心理测试数据_${new Date().toISOString().split('T')[0]}.xlsx`;
     const encodedFilename = encodeURIComponent(filename);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFilename}`);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodedFilename}"`);
 
     await workbook.xlsx.write(res);
     res.end();
