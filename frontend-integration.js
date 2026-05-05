@@ -87,45 +87,52 @@ const ReportHistory = {
 };
 
 // 显示报告历史列表
-function showReportHistory() {
-  const reports = ReportHistory.getAll();
-
-  // 标记所有报告为已读
-  ReportHistory.markAllAsRead();
-
-  // 创建历史列表弹窗
+async function showReportHistory() {
   const modal = document.getElementById('reportModal');
   const reportText = document.getElementById('reportText');
 
   let html = '<div style="max-height:400px; overflow-y:auto;">';
   html += '<h4 style="color:#667eea; margin-bottom:15px;">📋 历史报告记录</h4>';
 
-  if (reports.length === 0) {
-    html += '<p style="text-align:center; color:#999; padding:40px 0;">暂无报告记录</p>';
-  } else {
-    reports.forEach((report, index) => {
-      const date = new Date(report.timestamp);
-      const dateStr = `${date.getMonth()+1}月${date.getDate()}日 ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}`;
-      html += `
-        <div style="border:1px solid #e0e0e0; border-radius:10px; padding:12px; margin-bottom:10px; cursor:pointer; transition:all 0.2s;"
-             onmouseover="this.style.background='#f5f5f5'"
-             onmouseout="this.style.background='white'"
-             onclick="viewReport(${report.id})">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-              <div style="font-weight:500; color:#333;">报告 #${report.id}</div>
-              <div style="font-size:0.85rem; color:#666; margin-top:4px;">
-                ${dateStr} | ${report.grid_size}×${report.grid_size} | ${report.moves}步
-              </div>
-            </div>
-            <button onclick="event.stopPropagation(); deleteReport(${report.id})"
-                    style="background:#ff4444; color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.85rem;">
-              删除
-            </button>
-          </div>
-        </div>
-      `;
+  try {
+    const clientId = localStorage.getItem('puzzle_client_id');
+    const response = await fetch(window.API_BASE_URL + '/api/reports/list', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId })
     });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success || result.reports.length === 0) {
+      html += '<p style="text-align:center; color:#999; padding:40px 0;">暂无报告记录</p>';
+    } else {
+      result.reports.forEach(report => {
+        const date = new Date(report.created_at * 1000);
+        const dateStr = `${date.getMonth()+1}月${date.getDate()}日 ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}`;
+        html += `
+          <div style="border:1px solid #e0e0e0; border-radius:10px; padding:12px; margin-bottom:10px; cursor:pointer; transition:all 0.2s;"
+               onmouseover="this.style.background='#f5f5f5'"
+               onmouseout="this.style.background='white'"
+               onclick="viewReportFromDB(${report.id})">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-weight:500; color:#333;">报告 #${report.id}</div>
+                <div style="font-size:0.85rem; color:#666; margin-top:4px;">
+                  ${dateStr} | ${report.grid_size}×${report.grid_size} | ${report.moves}步
+                </div>
+              </div>
+              <button onclick="event.stopPropagation(); deleteReportFromDB(${report.id})"
+                      style="background:#ff4444; color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.85rem;">
+                删除
+              </button>
+            </div>
+          </div>
+        `;
+      });
+    }
+  } catch (error) {
+    html += '<p style="text-align:center; color:#999; padding:40px 0;">加载失败</p>';
   }
 
   html += '</div>';
@@ -276,3 +283,30 @@ document.addEventListener('DOMContentLoaded', function() {
     ReportHistory.updateUnreadBadge();
   }, 1000);
 });
+
+// 从数据库查看报告
+window.viewReportFromDB = async function(id) {
+  try {
+    const clientId = localStorage.getItem('puzzle_client_id');
+    const response = await fetch(window.API_BASE_URL + '/api/reports/list', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId })
+    });
+    const result = await response.json();
+    const report = result.reports.find(r => r.id === id);
+    if (report) {
+      document.getElementById('reportText').innerHTML = report.reportText;
+    }
+  } catch (error) {
+    alert('加载报告失败');
+  }
+};
+
+// 从数据库删除报告
+window.deleteReportFromDB = async function(id) {
+  if (confirm('确定要删除这条报告吗？')) {
+    alert('删除功能待实现');
+    showReportHistory();
+  }
+};
