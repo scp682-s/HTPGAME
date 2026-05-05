@@ -113,7 +113,7 @@ function showReportHistory() {
              onclick="viewReport(${report.id})">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <div style="font-weight:500; color:#333;">报告 #${reports.length - index}</div>
+              <div style="font-weight:500; color:#333;">报告 #${report.id}</div>
               <div style="font-size:0.85rem; color:#666; margin-top:4px;">
                 ${dateStr} | ${report.grid_size}×${report.grid_size} | ${report.moves}步
               </div>
