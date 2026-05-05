@@ -6,7 +6,24 @@
       "Bash(git push:*)",
       "Bash(python app.py)",
       "Bash(curl http://localhost:5000/api/health)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(python3:*)",
+      "Bash(unzip:*)",
+      "Bash(npm list:*)",
+      "Bash(python:*)",
+      "Bash(grep -E \"\\\\.\\(js|html|md\\)$\")",
+      "Bash(pandoc:*)",
+      "Bash(cp:*)",
+      "Bash(ls:*)",
+      "Bash(sed:*)",
+      "Bash(node:*)",
+      "Bash(npm:*)",
+      "Bash(mv:*)",
+      "Bash(curl:*)",
+      "Bash(nslookup:*)",
+      "Bash(ss:*)",
+      "Bash(netstat:*)",
+      "Bash(scp puzzle_engine.js root@43.160.201.4:/root/心宇宙重塑：房树人图像趣测/)"
     ]
   }
 }

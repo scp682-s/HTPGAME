@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<w:fonts xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" mc:Ignorable="w14">
+  <w:font w:name="Times New Roman">
+    <w:panose1 w:val="02020603050405020304"/>
+    <w:charset w:val="34"/>
+    <w:family w:val="roman"/>
+    <w:pitch w:val="default"/>
+    <w:sig w:usb0="E0002EFF" w:usb1="C000785B" w:usb2="00000009" w:usb3="00000000" w:csb0="400001FF" w:csb1="FFFF0000"/>
+    <w:embedRegular r:id="rId1" w:fontKey="{7273E08D-AFE9-43A8-8E49-0FE28D9DD217}"/>
+  </w:font>
+  <w:font w:name="宋体">
+    <w:panose1 w:val="02010600030101010101"/>
+    <w:charset w:val="7A"/>
+    <w:family w:val="auto"/>
+    <w:pitch w:val="default"/>
+    <w:sig w:usb0="00000203" w:usb1="288F0000" w:usb2="00000006" w:usb3="00000000" w:csb0="00040001" w:csb1="00000000"/>
+    <w:embedRegular r:id="rId2" w:fontKey="{E4043D56-78CF-46BD-89D9-BAA75136AD7D}"/>
+  </w:font>
+  <w:font w:name="Wingdings">
+    <w:panose1 w:val="05000000000000000000"/>
+    <w:charset w:val="02"/>
+    <w:family w:val="auto"/>
+    <w:pitch w:val="default"/>
+    <w:sig w:usb0="00000000" w:usb1="00000000" w:usb2="00000000" w:usb3="00000000" w:csb0="80000000" w:csb1="00000000"/>
+  </w:font>
+  <w:font w:name="Arial">
+    <w:panose1 w:val="020B0604020202020204"/>
+    <w:charset w:val="01"/>
+    <w:family w:val="swiss"/>
+    <w:pitch w:val="default"/>
+    <w:sig w:usb0="E0002EFF" w:usb1="C000785B" w:usb2="00000009" w:usb3="00000000" w:csb0="400001FF" w:csb1="FFFF0000"/>
+    <w:embedRegular r:id="rId3" w:fontKey="{B502B9A2-A641-4629-A6FE-F9AAA05E336A}"/>
+  </w:font>
+  <w:font w:name="黑体">
+    <w:panose1 w:val="02010609060101010101"/>
+    <w:charset w:val="86"/>
+    <w:family w:val="auto"/>
+    <w:pitch w:val="default"/>
+    <w:sig w:usb0="800002BF" w:usb1="38CF7CFA" w:usb2="00000016" w:usb3="00000000" w:csb0="00040001" w:csb1="00000000"/>
+    <w:embedRegular r:id="rId4" w:fontKey="{E9662010-4F8B-4516-BFB0-E6A676FD261B}"/>
+  </w:font>
+  <w:font w:name="Courier New">
+    <w:panose1 w:val="02070309020205020404"/>
+    <w:charset w:val="01"/>
+    <w:family w:val="modern"/>
+    <w:pitch w:val="default"/>
+    <w:sig w:usb0="E0002EFF" w:usb1="C0007843" w:usb2="00000009" w:usb3="00000000" w:csb0="400001FF" w:csb1="FFFF0000"/>
+  </w:font>
+  <w:font w:name="Symbol">
+    <w:panose1 w:val="05050102010706020507"/>
+    <w:charset w:val="02"/>
+    <w:family w:val="roman"/>
+    <w:pitch w:val="default"/>
+    <w:sig w:usb0="00000000" w:usb1="00000000" w:usb2="00000000" w:usb3="00000000" w:csb0="80000000" w:csb1="00000000"/>
+  </w:font>
+  <w:font w:name="Calibri">
+    <w:panose1 w:val="020F0502020204030204"/>
+    <w:charset w:val="00"/>
+    <w:family w:val="swiss"/>
+    <w:pitch w:val="default"/>
+    <w:sig w:usb0="E4002EFF" w:usb1="C200247B" w:usb2="00000009" w:usb3="00000000" w:csb0="200001FF" w:csb1="00000000"/>
+  </w:font>
+  <w:font w:name="微软雅黑">
+    <w:panose1 w:val="020B0503020204020204"/>
+    <w:charset w:val="86"/>
+    <w:family w:val="auto"/>
+    <w:pitch w:val="default"/>
+    <w:sig w:usb0="80000287" w:usb1="2ACF3C50" w:usb2="00000016" w:usb3="00000000" w:csb0="0004001F" w:csb1="00000000"/>
+  </w:font>
+  <w:font w:name="Tahoma">
+    <w:panose1 w:val="020B0604030504040204"/>
+    <w:charset w:val="00"/>
+    <w:family w:val="auto"/>
+    <w:pitch w:val="default"/>
+    <w:sig w:usb0="E1002EFF" w:usb1="C000605B" w:usb2="00000029" w:usb3="00000000" w:csb0="200101FF" w:csb1="20280000"/>
+  </w:font>
+  <w:font w:name="华文中宋">
+    <w:panose1 w:val="02010600040101010101"/>
+    <w:charset w:val="86"/>
+    <w:family w:val="auto"/>
+    <w:pitch w:val="default"/>
+    <w:sig w:usb0="00000287" w:usb1="080F0000" w:usb2="00000000" w:usb3="00000000" w:csb0="0004009F" w:csb1="DFD70000"/>
+    <w:embedRegular r:id="rId5" w:fontKey="{2A99456E-30B1-4AA2-8A14-56E96D2C8D9D}"/>
+  </w:font>
+  <w:font w:name="仿宋_GB2312">
+    <w:altName w:val="仿宋"/>
+    <w:panose1 w:val="02010609030101010101"/>
+    <w:charset w:val="86"/>
+    <w:family w:val="modern"/>
+    <w:pitch w:val="default"/>
+    <w:sig w:usb0="00000000" w:usb1="00000000" w:usb2="00000000" w:usb3="00000000" w:csb0="00040000" w:csb1="00000000"/>
+    <w:embedRegular r:id="rId6" w:fontKey="{A3CF57D6-D14B-4593-9252-C4DF02B990ED}"/>
+  </w:font>
+  <w:font w:name="楷体">
+    <w:panose1 w:val="02010609060101010101"/>
+    <w:charset w:val="86"/>
+    <w:family w:val="modern"/>
+    <w:pitch w:val="default"/>
+    <w:sig w:usb0="800002BF" w:usb1="38CF7CFA" w:usb2="00000016" w:usb3="00000000" w:csb0="00040001" w:csb1="00000000"/>
+    <w:embedRegular r:id="rId7" w:fontKey="{8EFE2FB3-9011-407D-A472-5DB62DE70770}"/>
+  </w:font>
+  <w:font w:name="华文楷体">
+    <w:panose1 w:val="02010600040101010101"/>
+    <w:charset w:val="86"/>
+    <w:family w:val="auto"/>
+    <w:pitch w:val="default"/>
+    <w:sig w:usb0="00000287" w:usb1="080F0000" w:usb2="00000000" w:usb3="00000000" w:csb0="0004009F" w:csb1="DFD70000"/>
+    <w:embedRegular r:id="rId8" w:fontKey="{E46A6F15-27BF-4A62-9F28-A415E3E74D5F}"/>
+  </w:font>
+  <w:font w:name="仿宋">
+    <w:panose1 w:val="02010609060101010101"/>
+    <w:charset w:val="86"/>
+    <w:family w:val="auto"/>
+    <w:pitch w:val="default"/>
+    <w:sig w:usb0="800002BF" w:usb1="38CF7CFA" w:usb2="00000016" w:usb3="00000000" w:csb0="00040001" w:csb1="00000000"/>
+  </w:font>
+</w:fonts>
