@@ -23,7 +23,13 @@
       "Bash(nslookup:*)",
       "Bash(ss:*)",
       "Bash(netstat:*)",
-      "Bash(scp puzzle_engine.js root@43.160.201.4:/root/心宇宙重塑：房树人图像趣测/)"
+      "Bash(scp puzzle_engine.js root@43.160.201.4:/root/心宇宙重塑：房树人图像趣测/)",
+      "Bash(findstr :3001)",
+      "Bash(taskkill /F /PID 39972)",
+      "Bash(taskkill //F //PID 39972)",
+      "Bash(taskkill //F //PID 22984)",
+      "Bash(taskkill //F //PID 39100)",
+      "Bash(git checkout *)"
     ]
   }
 }
