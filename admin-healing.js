@@ -210,9 +210,13 @@ class HealingManager {
         const list = document.createElement('ul');
         list.className = 'report-list';
 
-        reports.forEach(report => {
+        reports.forEach((report, index) => {
             const item = document.createElement('li');
             item.className = 'report-item';
+
+            // 格式化日期时间
+            const date = new Date(report.created_at * 1000);
+            const dateStr = `${date.getMonth()+1}月${date.getDate()}日 ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}`;
 
             // 获取会话状态
             const sessionStatus = this.getSessionStatus(report.id);
@@ -233,9 +237,11 @@ class HealingManager {
             item.innerHTML = `
                 <div class="report-item-header">
                     <span style="font-weight: 500;">报告 #${report.id}</span>
-                    <span class="report-item-time">${report.createdAtFormatted}</span>
+                    <span class="report-item-time">${dateStr}</span>
                 </div>
-                <div class="report-item-preview">${report.reportText.substring(0, 50)}...</div>
+                <div style="font-size:0.85rem; color:#666; margin-top:4px;">
+                    ${report.grid_size}×${report.grid_size} | ${report.moves}步
+                </div>
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
                     <button class="healing-action-btn" style="${buttonStyle} flex: 1; padding: 8px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem;">
                         ${buttonHtml}
@@ -285,14 +291,14 @@ class HealingManager {
         }
     }
 
-    // 删除会话
+    // 删除会话（联动删除报告和疗愈会话）
     async deleteSession(reportId) {
-        if (!confirm('确定要删除这个报告吗？删除后将无法恢复。')) {
+        if (!confirm('确定要删除这个报告吗？删除后将无法恢复，关联的心理疗愈记录也会一并删除。')) {
             return;
         }
 
         try {
-            // 调用后端 API 软删除报告
+            // 调用后端 API 软删除报告（会联动删除疗愈会话）
             const response = await fetch(window.API_BASE_URL + '/api/reports/delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

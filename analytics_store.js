@@ -464,14 +464,17 @@ class AnalyticsStore {
     const normalized = normalizeClientId(clientId);
     const stmt = this.db.prepare(`
       SELECT
-        id,
-        game_id,
-        image_source,
-        report_text,
-        created_at
-      FROM report_logs
-      WHERE client_id = ? AND (is_deleted = 0 OR is_deleted IS NULL)
-      ORDER BY created_at DESC
+        r.id,
+        r.game_id,
+        r.image_source,
+        r.report_text,
+        r.created_at,
+        g.grid_size,
+        g.move_count
+      FROM report_logs r
+      LEFT JOIN game_sessions g ON r.game_id = g.game_id
+      WHERE r.client_id = ? AND (r.is_deleted = 0 OR r.is_deleted IS NULL)
+      ORDER BY r.created_at DESC
       LIMIT ?
     `);
 
@@ -482,7 +485,9 @@ class AnalyticsStore {
       image_source: r.image_source,
       reportText: r.report_text,
       created_at: r.created_at,
-      createdAtFormatted: new Date(r.created_at * 1000).toLocaleString('zh-CN')
+      createdAtFormatted: new Date(r.created_at * 1000).toLocaleString('zh-CN'),
+      grid_size: r.grid_size || 3,
+      moves: r.move_count || 0
     }));
   }
 
@@ -615,6 +620,7 @@ class AnalyticsStore {
 
   /**
    * 软删除报告（标记为已删除，但保留数据供管理员导出）
+   * 同时联动删除关联的心理疗愈会话
    */
   softDeleteReport(reportId) {
     const stmt = this.db.prepare(`
@@ -623,6 +629,36 @@ class AnalyticsStore {
       WHERE id = ?
     `);
     stmt.run(reportId);
+
+    // 联动删除关联的疗愈会话
+    const healingStmt = this.db.prepare(`
+      UPDATE healing_sessions
+      SET is_deleted = 1
+      WHERE report_id = ?
+    `);
+    healingStmt.run(reportId);
+  }
+
+  /**
+   * 软删除疗愈会话（标记为已删除，但保留数据供管理员导出）
+   * 同时联动删除关联的心理报告
+   */
+  softDeleteHealingSession(reportId) {
+    // 删除疗愈会话
+    const healingStmt = this.db.prepare(`
+      UPDATE healing_sessions
+      SET is_deleted = 1
+      WHERE report_id = ?
+    `);
+    healingStmt.run(reportId);
+
+    // 联动删除关联的报告
+    const reportStmt = this.db.prepare(`
+      UPDATE report_logs
+      SET is_deleted = 1
+      WHERE id = ?
+    `);
+    reportStmt.run(reportId);
   }
 
   /**
