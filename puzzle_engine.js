@@ -361,12 +361,12 @@ class PuzzleEngine {
   _maybeTriggerTrickster(state) {
     if (!state.modifiers.trickster) return '';
     if (state.tricksterTriggered) return '';
-    if (state.moveCount < 5) return '';
+    if (state.moveCount < 3) return '';
 
     const placedIndices = state.board.map((pid, idx) => pid !== null ? idx : -1).filter(idx => idx !== -1);
     if (placedIndices.length < 2) return '';
 
-    const triggerProbability = 0.15;
+    const triggerProbability = 0.35;
     if (Math.random() > triggerProbability) return '';
 
     const movedCount = this._triggerTrickster(state);

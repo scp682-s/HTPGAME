@@ -2366,6 +2366,13 @@
                     this.showComplete();
                 } else {
                     this.messageEl.textContent = gameState.message || '点按碎片，再点按格子放置';
+
+                    // 检查是否有特殊事件消息
+                    if (gameState.message && gameState.message.includes('捣蛋鬼')) {
+                        this.showSpecialAlert('😈 捣蛋鬼出现！', gameState.message, '#ff6b6b');
+                    } else if (gameState.message && gameState.message.includes('显示')) {
+                        this.showSpecialAlert('✨ 隐藏碎片显示！', gameState.message, '#51cf66');
+                    }
                 }
 
                 // 清除选择
@@ -2484,10 +2491,10 @@
                 const elapsed = Date.now() - this.startTime;
                 const minutes = Math.floor(elapsed / 60000);
                 const seconds = Math.floor((elapsed % 60000) / 1000);
-                document.getElementById('completeTime').textContent = 
+                document.getElementById('completeTime').textContent =
                     `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
                 document.getElementById('completeSteps').textContent = this.moveCount;
-                
+
                 setTimeout(() => {
                     showPage('pageComplete');
                     // 首次完成游戏自动展示问卷
@@ -2498,6 +2505,46 @@
                         }, 800);
                     }
                 }, 500);
+            }
+
+            // 显示特殊事件提示
+            showSpecialAlert(title, message, color) {
+                const alert = document.createElement('div');
+                alert.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%) scale(0.8);
+                    background: ${color};
+                    color: white;
+                    padding: 20px 30px;
+                    border-radius: 15px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                    z-index: 10000;
+                    text-align: center;
+                    font-size: 1.2rem;
+                    font-weight: bold;
+                    opacity: 0;
+                    transition: all 0.3s ease;
+                `;
+                alert.innerHTML = `
+                    <div style="font-size: 2rem; margin-bottom: 10px;">${title}</div>
+                    <div style="font-size: 1rem; font-weight: normal;">${message}</div>
+                `;
+                document.body.appendChild(alert);
+
+                setTimeout(() => {
+                    alert.style.opacity = '1';
+                    alert.style.transform = 'translate(-50%, -50%) scale(1)';
+                }, 10);
+
+                setTimeout(() => {
+                    alert.style.opacity = '0';
+                    alert.style.transform = 'translate(-50%, -50%) scale(0.8)';
+                    setTimeout(() => {
+                        document.body.removeChild(alert);
+                    }, 300);
+                }, 2000);
             }
             
             startTimer() {
