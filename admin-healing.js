@@ -557,57 +557,37 @@ class HealingManager {
         this.currentReportContent = reportContent;
         this.healingListModal.classList.remove('active');
 
+        // 每次都创建新会话，不恢复旧会话
         const sessionKey = `healing_session_${reportId}`;
-        const existingSession = localStorage.getItem(sessionKey);
 
-        if (existingSession) {
-            // 恢复已有会话
-            const session = JSON.parse(existingSession);
-            this.currentSessionId = session.sessionId;
-            this.showChatModal(session.questionCount);
+        // 创建新会话
+        try {
+            const clientId = this.getClientId();
+            const response = await fetch(window.API_BASE_URL + '/api/healing/create-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ clientId, reportId, reportContent })
+            });
 
-            // 恢复消息历史
-            if (session.messages) {
-                const messagesContainer = document.getElementById('chatMessages');
-                messagesContainer.innerHTML = `
-                    <div class="chat-message system">
-                        欢迎来到心理疗愈对话。我会基于您的心理报告，与您进行3轮对话，帮助您更好地了解自己。
-                    </div>
-                `;
-                session.messages.forEach(msg => {
-                    this.addMessageToChat(msg.role, msg.content);
-                });
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                this.currentSessionId = result.sessionId;
+
+                // 保存会话到本地
+                localStorage.setItem(sessionKey, JSON.stringify({
+                    sessionId: result.sessionId,
+                    reportId: reportId,
+                    questionCount: 0,
+                    messages: []
+                }));
+
+                this.showChatModal(0);
+            } else {
+                alert('创建疗愈会话失败');
             }
-        } else {
-            // 创建新会话
-            try {
-                const clientId = this.getClientId();
-                const response = await fetch(window.API_BASE_URL + '/api/healing/create-session', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ clientId, reportId, reportContent })
-                });
-
-                const result = await response.json();
-
-                if (response.ok && result.success) {
-                    this.currentSessionId = result.sessionId;
-
-                    // 保存会话到本地
-                    localStorage.setItem(sessionKey, JSON.stringify({
-                        sessionId: result.sessionId,
-                        reportId: reportId,
-                        questionCount: 0,
-                        messages: []
-                    }));
-
-                    this.showChatModal(0);
-                } else {
-                    alert('创建疗愈会话失败');
-                }
-            } catch (error) {
-                alert('创建疗愈会话失败: ' + error.message);
-            }
+        } catch (error) {
+            alert('创建疗愈会话失败: ' + error.message);
         }
     }
 
