@@ -1614,7 +1614,9 @@
 
             const img = new Image();
             img.onload = function() {
-                window.puzzleGame.originalImage = img;
+                if (window.puzzleGame) {
+                    window.puzzleGame.originalImage = img;
+                }
                 previewImage.src = src;
                 previewImage.style.display = 'block';
                 placeholderContent.style.display = 'none';
