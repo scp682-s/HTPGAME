@@ -59,6 +59,39 @@ class AnalyticsStore {
   }
 
   _initDb() {
+    // 创建 admin_accounts 表
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS admin_accounts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        teacher_name TEXT,
+        created_at REAL NOT NULL
+      )
+    `);
+
+    // 为已存在的表添加 teacher_name 字段（如果不存在）
+    try {
+      this.db.exec(`ALTER TABLE admin_accounts ADD COLUMN teacher_name TEXT`);
+    } catch (e) {
+      // 字段已存在，忽略错误
+    }
+
+    // 删除旧的 class_name 字段（如果存在）
+    // SQLite 不支持直接删除列，所以我们保留它但不再使用
+
+    // 创建 classes 表（存储班级信息）
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS classes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        teacher_id INTEGER NOT NULL,
+        class_number TEXT NOT NULL,
+        created_at REAL NOT NULL,
+        FOREIGN KEY (teacher_id) REFERENCES admin_accounts(id),
+        UNIQUE(teacher_id, class_number)
+      )
+    `);
+
     // 创建 users 表
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS users (
@@ -153,6 +186,7 @@ class AnalyticsStore {
         question_count INTEGER DEFAULT 0,
         user_name TEXT,
         user_student_id TEXT,
+        user_class TEXT,
         is_anonymous INTEGER DEFAULT 1,
         is_deleted INTEGER DEFAULT 0,
         created_at REAL NOT NULL,
@@ -568,15 +602,15 @@ class AnalyticsStore {
   /**
    * 更新用户信息
    */
-  updateHealingUserInfo(sessionId, userName, userStudentId, isAnonymous) {
+  updateHealingUserInfo(sessionId, userName, userStudentId, userClass, isAnonymous) {
     const now = Date.now() / 1000;
     const stmt = this.db.prepare(`
       UPDATE healing_sessions
-      SET user_name = ?, user_student_id = ?, is_anonymous = ?, updated_at = ?
+      SET user_name = ?, user_student_id = ?, user_class = ?, is_anonymous = ?, updated_at = ?
       WHERE session_id = ?
     `);
 
-    stmt.run(userName, userStudentId, isAnonymous ? 1 : 0, now, sessionId);
+    stmt.run(userName, userStudentId, userClass, isAnonymous ? 1 : 0, now, sessionId);
   }
 
   /**
@@ -592,6 +626,7 @@ class AnalyticsStore {
         hs.question_count,
         hs.user_name,
         hs.user_student_id,
+        hs.user_class,
         hs.is_anonymous,
         hs.created_at,
         hs.updated_at
@@ -617,6 +652,133 @@ class AnalyticsStore {
       };
     });
   }
+
+  /**
+   * 获取按班级分组的疗愈数据（用于管理员查看）
+   */
+  getHealingDataByClass(className) {
+    const stmt = this.db.prepare(`
+      SELECT
+        hs.session_id,
+        hs.user_name,
+        hs.user_student_id,
+        hs.user_class,
+        hs.report_content,
+        hs.question_count,
+        hs.is_anonymous,
+        hs.created_at
+      FROM healing_sessions hs
+      WHERE hs.is_deleted = 0 AND hs.user_class = ?
+      ORDER BY hs.created_at DESC
+    `);
+
+    const sessions = stmt.all(className);
+
+    return sessions.map(session => {
+      const messagesStmt = this.db.prepare(`
+        SELECT content FROM healing_messages
+        WHERE session_id = ? AND role = 'user'
+        ORDER BY created_at ASC
+      `);
+      const messages = messagesStmt.all(session.session_id);
+
+      return {
+        ...session,
+        questions: messages.map(m => m.content)
+      };
+    });
+  }
+
+  /**
+   * 获取所有班级列表
+   */
+  getAllClasses() {
+    const stmt = this.db.prepare(`
+      SELECT DISTINCT user_class
+      FROM healing_sessions
+      WHERE is_deleted = 0 AND user_class IS NOT NULL AND user_class != ''
+      ORDER BY user_class
+    `);
+
+    return stmt.all().map(row => row.user_class);
+  }
+
+  /**
+   * 创建管理员账号
+   */
+  createAdminAccount(username, password, teacherName) {
+    const now = Date.now() / 1000;
+    const stmt = this.db.prepare(`
+      INSERT INTO admin_accounts (username, password, teacher_name, created_at)
+      VALUES (?, ?, ?, ?)
+    `);
+
+    stmt.run(username, password, teacherName, now);
+  }
+
+  /**
+   * 验证管理员账号
+   */
+  verifyAdminAccount(username, password) {
+    const stmt = this.db.prepare(`
+      SELECT * FROM admin_accounts
+      WHERE username = ? AND password = ?
+    `);
+
+    return stmt.get(username, password);
+  }
+
+  /**
+   * 获取所有老师列表
+   */
+  getAllTeachers() {
+    const stmt = this.db.prepare(`
+      SELECT id, username, teacher_name
+      FROM admin_accounts
+      ORDER BY teacher_name
+    `);
+
+    return stmt.all();
+  }
+
+  /**
+   * 根据老师ID获取班级列表
+   */
+  getClassesByTeacher(teacherId) {
+    const stmt = this.db.prepare(`
+      SELECT id, class_number
+      FROM classes
+      WHERE teacher_id = ?
+      ORDER BY class_number
+    `);
+
+    return stmt.all(teacherId);
+  }
+
+  /**
+   * 创建班级
+   */
+  createClass(teacherId, classNumber) {
+    const now = Date.now() / 1000;
+    const stmt = this.db.prepare(`
+      INSERT INTO classes (teacher_id, class_number, created_at)
+      VALUES (?, ?, ?)
+    `);
+
+    stmt.run(teacherId, classNumber, now);
+  }
+
+  /**
+   * 删除班级
+   */
+  deleteClass(classId) {
+    const stmt = this.db.prepare(`
+      DELETE FROM classes WHERE id = ?
+    `);
+
+    stmt.run(classId);
+  }
+
 
   /**
    * 软删除报告（标记为已删除，但保留数据供管理员导出）

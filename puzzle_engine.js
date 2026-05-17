@@ -380,23 +380,21 @@ class PuzzleEngine {
     const placedIndices = state.board.map((pid, idx) => pid !== null ? idx : -1).filter(idx => idx !== -1);
     if (placedIndices.length < 2) return 0;
 
-    let moveCount = state.gridSize >= 6 ? 5 : Math.floor(Math.random() * 3) + 1;
-    moveCount = Math.min(moveCount, placedIndices.length);
-    const selectedIndices = this._sample(placedIndices, moveCount);
+    // 移动所有已放置的碎片
+    const moveCount = placedIndices.length;
+    const originalPieces = placedIndices.map(idx => state.board[idx]);
 
-    let moved = 0;
-    for (const sourceIdx of selectedIndices) {
-      const targetCandidates = placedIndices.filter(idx => idx !== sourceIdx);
-      if (targetCandidates.length === 0) continue;
-      const targetIdx = targetCandidates[Math.floor(Math.random() * targetCandidates.length)];
-      [state.board[sourceIdx], state.board[targetIdx]] = [state.board[targetIdx], state.board[sourceIdx]];
-      moved++;
-    }
+    // 打乱所有已放置碎片的位置
+    const shuffledPieces = [...originalPieces];
+    this._shuffle(shuffledPieces);
 
-    if (moved > 0) {
-      state.tricksterTriggered = true;
-    }
-    return moved;
+    // 重新分配到原位置
+    placedIndices.forEach((idx, i) => {
+      state.board[idx] = shuffledPieces[i];
+    });
+
+    state.tricksterTriggered = true;
+    return moveCount;
   }
 
   _revealHiddenPiecesIfNeeded(state) {

@@ -200,15 +200,125 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '123456';
 // 管理员登录
 app.post('/api/admin/login', (req, res) => {
   try {
-    const { password } = req.body;
-    if (password === ADMIN_PASSWORD) {
-      res.json({ success: true, message: '登录成功' });
+    const { username, password } = req.body;
+
+    // 验证管理员账号
+    const admin = analyticsStore.verifyAdminAccount(username, password);
+
+    if (admin) {
+      res.json({
+        success: true,
+        message: '登录成功',
+        teacherId: admin.id,
+        teacherName: admin.teacher_name,
+        username: admin.username
+      });
     } else {
-      res.status(401).json({ success: false, message: '密码错误' });
+      res.status(401).json({ success: false, message: '账号或密码错误' });
     }
   } catch (error) {
     console.error('登录失败:', error);
     res.status(500).json({ success: false, error: '登录失败' });
+  }
+});
+
+// 创建管理员账号
+app.post('/api/admin/create-account', (req, res) => {
+  try {
+    const { username, password, teacherName } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ success: false, message: '账号和密码不能为空' });
+    }
+
+    analyticsStore.createAdminAccount(username, password, teacherName);
+    res.json({ success: true, message: '账号创建成功' });
+  } catch (error) {
+    console.error('创建账号失败:', error);
+    if (error.message.includes('UNIQUE constraint failed')) {
+      res.status(400).json({ success: false, message: '账号已存在' });
+    } else {
+      res.status(500).json({ success: false, error: '创建账号失败' });
+    }
+  }
+});
+
+// 获取所有老师列表
+app.get('/api/teachers', (req, res) => {
+  try {
+    const teachers = analyticsStore.getAllTeachers();
+    res.json({ success: true, teachers });
+  } catch (error) {
+    console.error('获取老师列表失败:', error);
+    res.status(500).json({ success: false, error: '获取老师列表失败' });
+  }
+});
+
+// 获取指定老师的班级列表
+app.get('/api/teachers/:teacherId/classes', (req, res) => {
+  try {
+    const { teacherId } = req.params;
+    const classes = analyticsStore.getClassesByTeacher(teacherId);
+    res.json({ success: true, classes });
+  } catch (error) {
+    console.error('获取班级列表失败:', error);
+    res.status(500).json({ success: false, error: '获取班级列表失败' });
+  }
+});
+
+// 创建班级
+app.post('/api/admin/classes', (req, res) => {
+  try {
+    const { teacherId, classNumber } = req.body;
+
+    if (!teacherId || !classNumber) {
+      return res.status(400).json({ success: false, message: '老师ID和班级号不能为空' });
+    }
+
+    analyticsStore.createClass(teacherId, classNumber);
+    res.json({ success: true, message: '班级创建成功' });
+  } catch (error) {
+    console.error('创建班级失败:', error);
+    if (error.message.includes('UNIQUE constraint failed')) {
+      res.status(400).json({ success: false, message: '该班级已存在' });
+    } else {
+      res.status(500).json({ success: false, error: '创建班级失败' });
+    }
+  }
+});
+
+// 删除班级
+app.delete('/api/admin/classes/:classId', (req, res) => {
+  try {
+    const { classId } = req.params;
+    analyticsStore.deleteClass(classId);
+    res.json({ success: true, message: '班级删除成功' });
+  } catch (error) {
+    console.error('删除班级失败:', error);
+    res.status(500).json({ success: false, error: '删除班级失败' });
+  }
+});
+
+// 获取所有班级列表
+app.get('/api/admin/all-classes', (req, res) => {
+  try {
+    const classes = analyticsStore.getAllClasses();
+    res.json({ success: true, classes });
+  } catch (error) {
+    console.error('获取班级列表失败:', error);
+    res.status(500).json({ success: false, error: '获取班级列表失败' });
+  }
+});
+
+// 获取指定班级的学生疗愈数据
+app.post('/api/admin/class-healing-data', (req, res) => {
+  try {
+    const { className } = req.body;
+    const data = analyticsStore.getHealingDataByClass(className);
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('获取班级数据失败:', error);
+    res.status(500).json({ success: false, error: '获取班级数据失败' });
   }
 });
 
@@ -413,8 +523,8 @@ app.post('/api/healing/chat', async (req, res) => {
 // 提交用户信息
 app.post('/api/healing/submit-info', async (req, res) => {
   try {
-    const { sessionId, userName, userStudentId, isAnonymous } = req.body;
-    await analyticsStore.updateHealingUserInfo(sessionId, userName, userStudentId, isAnonymous);
+    const { sessionId, userName, userStudentId, userClass, isAnonymous } = req.body;
+    await analyticsStore.updateHealingUserInfo(sessionId, userName, userStudentId, userClass, isAnonymous);
     res.json({ success: true });
   } catch (error) {
     console.error('提交信息失败:', error);

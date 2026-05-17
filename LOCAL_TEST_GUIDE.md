@@ -1,115 +1,97 @@
-# 本地测试指南
+# 本地测试说明
 
-## 快速开始
+## 新增功能
 
-### 1. 启动后端服务器
+### 1. 管理员账号系统
+- 管理员现在使用账号+密码登录（不再是单一密码）
+- 每个管理员可以绑定一个班级
+- 数据库新增 `admin_accounts` 表存储管理员信息
 
-打开命令行，进入项目目录：
+### 2. 班级管理功能
+- 管理员登录后可以选择班级查看学生的心理疗愈数据
+- 以列表形式展示学生姓名、学号和疗愈内容
+- 支持查看学生的提问详情
 
-```bash
-cd "c:\Users\redking\Desktop\大创项目\心宇宙重塑：房树人图像趣测"
-npm run dev
-```
+### 3. 匿名提交优化
+- 用户信息提交页面调整为：先勾选"匿名提交"，勾选后隐藏姓名/学号/班级输入框
+- 不勾选匿名时，需要填写姓名、学号和班级
+- 数据库 `healing_sessions` 表新增 `user_class` 字段
 
-你应该看到：
-```
-Server running at http://localhost:3001
-API endpoints:
-  - POST   /api/puzzle/games - 创建游戏
-  - GET    /api/puzzle/games/:gameId - 获取游戏状态
-  - POST   /api/puzzle/games/:gameId/actions - 执行动作
-  - POST   /api/generate_report - 生成心理报告
-Database initialized at: ...
-```
+## 本地测试步骤
 
-### 2. 打开游戏页面
+### 1. 创建管理员账号
 
-**方法1：直接打开HTML文件**
-- 双击 `index.html` 文件
-- 浏览器会自动打开
-
-**方法2：使用本地服务器（推荐）**
-- 打开新的命令行窗口
-- 运行：`python -m http.server 8000`（如果有Python）
-- 访问：http://localhost:8000
-
-### 3. 测试游戏功能
-
-#### 测试步骤：
-1. 点击"开始游戏"
-2. 选择一张图片（photo/1.png 等）
-3. 选择难度（建议先选3x3）
-4. 点击"生成拼图"
-5. 完成拼图
-6. 点击"查看心理分析报告"
-7. 等待报告生成（5-15秒）
-
----
-
-## 测试后端API
-
-### 使用测试脚本
+运行以下命令创建测试管理员账号：
 
 ```bash
-# 测试数据库功能
-node test_database.js
-
-# 测试拼图引擎
-node test_puzzle_engine.js
-
-# 测试真实场景
-node test_real_scenario.js
-
-# 查看最新报告
-node view_report.js
+node create_admin.js
 ```
 
----
+这将创建以下测试账号：
+- 账号: `admin`, 密码: `123456` (超级管理员，可查看所有班级)
+- 账号: `teacher1`, 密码: `123456` (计算机1班)
+- 账号: `teacher2`, 密码: `123456` (计算机2班)
 
-## 测试完整流程
+### 2. 启动服务器
 
-1. **启动服务器** - `npm run dev`
-2. **打开浏览器** - 访问 http://localhost:8000
-3. **完成一局游戏** - 选择图片、难度、完成拼图
-4. **生成报告** - 点击"查看心理分析报告"
-5. **检查数据库** - `node view_report.js`
-6. **再玩几局** - 重复3-5次
-7. **查看近期行为摘要** - 报告中会显示统计数据
-
----
-
-## 常见问题
-
-### 1. 端口被占用
 ```bash
-taskkill /F /IM node.exe
+node server.js
 ```
 
-### 2. 报告生成失败
-检查 `.env` 文件是否包含：
+### 3. 测试流程
+
+#### 测试管理员功能：
+1. 打开浏览器访问 `http://localhost:3001`
+2. 点击"管理员"按钮
+3. 使用上述账号登录（例如：admin/123456）
+4. 登录后可以：
+   - 选择班级查看学生疗愈数据
+   - 导出所有数据为Excel
+
+#### 测试学生提交功能：
+1. 完成拼图游戏并生成心理报告
+2. 进行心理疗愈对话（3轮提问）
+3. 对话结束后，在信息提交页面：
+   - **不勾选匿名**：需要填写姓名、学号、班级
+   - **勾选匿名**：姓名、学号、班级输入框隐藏，提交为匿名
+
+#### 测试班级数据查看：
+1. 使用管理员账号登录
+2. 选择班级（例如：计算机1班）
+3. 点击"查看班级数据"
+4. 查看该班级学生的疗愈记录列表
+5. 点击"查看详情"展开学生的提问内容
+
+## 数据库变更
+
+### 新增表：`admin_accounts`
+```sql
+CREATE TABLE admin_accounts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL UNIQUE,
+  password TEXT NOT NULL,
+  class_name TEXT,
+  created_at REAL NOT NULL
+)
 ```
-OPENAI_API_KEY=sk-你的密钥
-```
 
-### 3. 前端无法连接后端
-确保端口正确（3001），编辑 `frontend-integration.js`
+### 修改表：`healing_sessions`
+新增字段：`user_class TEXT`
 
----
+## API 变更
 
-## 项目文件
+### 新增接口：
+- `POST /api/admin/create-account` - 创建管理员账号
+- `GET /api/admin/classes` - 获取所有班级列表
+- `POST /api/admin/class-healing-data` - 获取指定班级的学生疗愈数据
 
-### 核心文件
-- `server.js` - 后端服务器
-- `puzzle_engine.js` - 拼图引擎
-- `analytics_store.js` - 数据库
-- `index.html` - 游戏页面
+### 修改接口：
+- `POST /api/admin/login` - 现在需要 `username` 和 `password`
+- `POST /api/healing/submit-info` - 新增 `userClass` 参数
 
-### 测试文件
-- `test_database.js`
-- `test_puzzle_engine.js`
-- `test_real_scenario.js`
-- `view_report.js`
+## 注意事项
 
-### 数据
-- `data/behavior_analytics.db` - 数据库
-- `.env` - API密钥
+1. 这些功能仅用于本地测试
+2. 密码未加密存储，生产环境需要使用加密
+3. 管理员账号创建脚本可以重复运行，已存在的账号会跳过
+4. 匿名提交时，姓名、学号、班级字段会存储为空字符串

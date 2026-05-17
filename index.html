@@ -1342,6 +1342,10 @@
             </div>
             <div class="modal-body">
                 <div class="input-group">
+                    <label>管理员账号</label>
+                    <input type="text" id="adminUsername" placeholder="请输入管理员账号">
+                </div>
+                <div class="input-group">
                     <label>管理员密码</label>
                     <input type="password" id="adminPassword" placeholder="请输入管理员密码">
                 </div>
@@ -1358,8 +1362,44 @@
                 <button class="modal-close" id="closeAdminPanel">×</button>
             </div>
             <div class="modal-body">
-                <p style="margin-bottom: 15px; color: #666;">导出所有心理测试数据为Excel表格</p>
-                <button class="btn btn-success" id="exportDataBtn" style="width: 100%;">📥 导出数据</button>
+                <p style="margin-bottom: 15px; color: #666;">欢迎，<span id="adminWelcome"></span></p>
+
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin-bottom: 10px;">班级管理</h4>
+                    <div class="input-group">
+                        <label>选择班级</label>
+                        <select id="classSelector" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                            <option value="">加载中...</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button class="btn btn-primary" id="createClassBtn" style="flex: 1;">➕ 新建班级</button>
+                        <button class="btn btn-warning" id="deleteClassBtn" style="flex: 1;">🗑️ 删除班级</button>
+                    </div>
+                    <button class="btn btn-primary" id="viewClassDataBtn" style="width: 100%; margin-top: 10px;">查看班级数据</button>
+                </div>
+
+                <div style="border-top: 1px solid #eee; padding-top: 15px;">
+                    <button class="btn btn-success" id="exportDataBtn" style="width: 100%;">📥 导出所有数据</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 班级数据查看模态框 -->
+    <div class="modal" id="classDataModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>📋 班级学生疗愈数据</h3>
+                <button class="modal-close" id="closeClassData">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="classDataContent">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>加载中...</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1412,18 +1452,32 @@
             <div class="modal-body">
                 <p style="margin-bottom: 15px; color: #666;">对话已结束，请填写您的信息（可选择匿名）</p>
                 <div class="input-group">
-                    <label>姓名</label>
-                    <input type="text" id="userName" placeholder="请输入姓名">
-                </div>
-                <div class="input-group">
-                    <label>学号</label>
-                    <input type="text" id="userStudentId" placeholder="请输入学号">
-                </div>
-                <div class="input-group">
                     <label>
-                        <input type="checkbox" id="isAnonymous" checked>
+                        <input type="checkbox" id="isAnonymous">
                         匿名提交
                     </label>
+                </div>
+                <div id="userInfoFields">
+                    <div class="input-group">
+                        <label>选择老师</label>
+                        <select id="teacherSelector" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                            <option value="">加载中...</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>选择班级</label>
+                        <select id="userClassSelector" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                            <option value="">请先选择老师</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>姓名</label>
+                        <input type="text" id="userName" placeholder="请输入姓名">
+                    </div>
+                    <div class="input-group">
+                        <label>学号</label>
+                        <input type="text" id="userStudentId" placeholder="请输入学号">
+                    </div>
                 </div>
                 <button class="btn btn-primary" id="submitUserInfoBtn" style="width: 100%;">提交</button>
             </div>

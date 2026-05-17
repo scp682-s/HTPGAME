@@ -3,6 +3,8 @@ class AdminManager {
     constructor() {
         this.adminLoginModal = document.getElementById('adminLoginModal');
         this.adminPanelModal = document.getElementById('adminPanelModal');
+        this.classDataModal = document.getElementById('classDataModal');
+        this.currentAdmin = null;
         this.initEvents();
     }
 
@@ -27,6 +29,26 @@ class AdminManager {
             this.adminPanelModal.classList.remove('active');
         });
 
+        // 关闭班级数据模态框
+        document.getElementById('closeClassData').addEventListener('click', () => {
+            this.classDataModal.classList.remove('active');
+        });
+
+        // 查看班级数据按钮
+        document.getElementById('viewClassDataBtn').addEventListener('click', () => {
+            this.viewClassData();
+        });
+
+        // 新建班级按钮
+        document.getElementById('createClassBtn').addEventListener('click', () => {
+            this.createClass();
+        });
+
+        // 删除班级按钮
+        document.getElementById('deleteClassBtn').addEventListener('click', () => {
+            this.deleteClass();
+        });
+
         // 导出数据按钮
         document.getElementById('exportDataBtn').addEventListener('click', () => {
             this.exportData();
@@ -44,18 +66,26 @@ class AdminManager {
                 this.adminPanelModal.classList.remove('active');
             }
         });
+
+        this.classDataModal.addEventListener('click', (e) => {
+            if (e.target === this.classDataModal) {
+                this.classDataModal.classList.remove('active');
+            }
+        });
     }
 
     showLoginModal() {
         this.adminLoginModal.classList.add('active');
+        document.getElementById('adminUsername').value = '';
         document.getElementById('adminPassword').value = '';
     }
 
     async login() {
+        const username = document.getElementById('adminUsername').value;
         const password = document.getElementById('adminPassword').value;
 
-        if (!password) {
-            alert('请输入密码');
+        if (!username || !password) {
+            alert('请输入账号和密码');
             return;
         }
 
@@ -63,20 +93,204 @@ class AdminManager {
             const response = await fetch(window.API_BASE_URL + '/api/admin/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password })
+                body: JSON.stringify({ username, password })
             });
 
             const result = await response.json();
 
             if (response.ok && result.success) {
+                this.currentAdmin = {
+                    username: result.username,
+                    teacherId: result.teacherId,
+                    teacherName: result.teacherName
+                };
                 this.adminLoginModal.classList.remove('active');
-                this.adminPanelModal.classList.add('active');
+                this.showAdminPanel();
             } else {
-                alert(result.message || '密码错误');
+                alert(result.message || '账号或密码错误');
             }
         } catch (error) {
             alert('登录失败: ' + error.message);
         }
+    }
+
+    async showAdminPanel() {
+        this.adminPanelModal.classList.add('active');
+        document.getElementById('adminWelcome').textContent = this.currentAdmin.teacherName || this.currentAdmin.username;
+
+        // 加载该老师的班级列表
+        await this.loadTeacherClasses();
+    }
+
+    async loadTeacherClasses() {
+        try {
+            const response = await fetch(window.API_BASE_URL + `/api/teachers/${this.currentAdmin.teacherId}/classes`);
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                const selector = document.getElementById('classSelector');
+                selector.innerHTML = '<option value="">请选择班级</option>';
+
+                result.classes.forEach(cls => {
+                    const option = document.createElement('option');
+                    option.value = cls.class_number;
+                    option.dataset.classId = cls.id;
+                    option.textContent = cls.class_number;
+                    selector.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('加载班级列表失败:', error);
+        }
+    }
+
+    async createClass() {
+        const classNumber = prompt('请输入班级号（例如：1、2、3）：');
+
+        if (!classNumber || !classNumber.trim()) {
+            return;
+        }
+
+        try {
+            const response = await fetch(window.API_BASE_URL + '/api/admin/classes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    teacherId: this.currentAdmin.teacherId,
+                    classNumber: classNumber.trim()
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                alert('班级创建成功！');
+                await this.loadTeacherClasses();
+            } else {
+                alert(result.message || '创建失败');
+            }
+        } catch (error) {
+            alert('创建失败: ' + error.message);
+        }
+    }
+
+    async deleteClass() {
+        const selector = document.getElementById('classSelector');
+        const selectedOption = selector.options[selector.selectedIndex];
+
+        if (!selectedOption || !selectedOption.dataset.classId) {
+            alert('请先选择要删除的班级');
+            return;
+        }
+
+        if (!confirm(`确定要删除班级 ${selectedOption.value} 吗？`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(window.API_BASE_URL + `/api/admin/classes/${selectedOption.dataset.classId}`, {
+                method: 'DELETE'
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                alert('班级删除成功！');
+                await this.loadTeacherClasses();
+            } else {
+                alert(result.message || '删除失败');
+            }
+        } catch (error) {
+            alert('删除失败: ' + error.message);
+        }
+    }
+
+    async viewClassData() {
+        const className = document.getElementById('classSelector').value;
+
+        if (!className) {
+            alert('请选择班级');
+            return;
+        }
+
+        this.classDataModal.classList.add('active');
+        const content = document.getElementById('classDataContent');
+        content.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>加载中...</p></div>';
+
+        try {
+            const response = await fetch(window.API_BASE_URL + '/api/admin/class-healing-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ className })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                this.renderClassData(result.data, className);
+            } else {
+                content.innerHTML = '<p style="text-align: center; color: #999;">加载失败</p>';
+            }
+        } catch (error) {
+            content.innerHTML = '<p style="text-align: center; color: #999;">加载失败: ' + error.message + '</p>';
+        }
+    }
+
+    renderClassData(data, className) {
+        const content = document.getElementById('classDataContent');
+
+        if (data.length === 0) {
+            content.innerHTML = `<p style="text-align: center; color: #999;">${className} 暂无学生疗愈数据</p>`;
+            return;
+        }
+
+        const list = document.createElement('ul');
+        list.className = 'report-list';
+
+        data.forEach((session, index) => {
+            const item = document.createElement('li');
+            item.className = 'report-item';
+
+            const date = new Date(session.created_at * 1000);
+            const dateStr = `${date.getMonth()+1}月${date.getDate()}日 ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}`;
+
+            const displayName = session.is_anonymous ? '匿名' : (session.user_name || '未填写');
+            const displayStudentId = session.is_anonymous ? '匿名' : (session.user_student_id || '未填写');
+
+            item.innerHTML = `
+                <div class="report-item-header">
+                    <span style="font-weight: 500;">${displayName} (${displayStudentId})</span>
+                    <span class="report-item-time">${dateStr}</span>
+                </div>
+                <div style="font-size:0.85rem; color:#666; margin-top:4px;">
+                    提问次数: ${session.question_count}
+                </div>
+                <button class="view-detail-btn" style="margin-top: 10px; width: 100%; padding: 8px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                    查看详情
+                </button>
+                <div class="session-detail" style="display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                    <h4 style="margin-bottom: 8px;">用户提问:</h4>
+                    ${session.questions.map((q, i) => `<p style="margin: 5px 0; font-size: 0.85rem;"><strong>问题${i+1}:</strong> ${q}</p>`).join('')}
+                </div>
+            `;
+
+            const viewBtn = item.querySelector('.view-detail-btn');
+            const detailDiv = item.querySelector('.session-detail');
+            viewBtn.addEventListener('click', () => {
+                if (detailDiv.style.display === 'none') {
+                    detailDiv.style.display = 'block';
+                    viewBtn.textContent = '收起详情';
+                } else {
+                    detailDiv.style.display = 'none';
+                    viewBtn.textContent = '查看详情';
+                }
+            });
+
+            list.appendChild(item);
+        });
+
+        content.innerHTML = `<h4 style="margin-bottom: 15px;">${className} - 共 ${data.length} 条记录</h4>`;
+        content.appendChild(list);
     }
 
     async exportData() {
@@ -152,6 +366,16 @@ class HealingManager {
         // 提交用户信息
         document.getElementById('submitUserInfoBtn').addEventListener('click', () => {
             this.submitUserInfo();
+        });
+
+        // 匿名复选框变化事件
+        document.getElementById('isAnonymous').addEventListener('change', (e) => {
+            const userInfoFields = document.getElementById('userInfoFields');
+            if (e.target.checked) {
+                userInfoFields.style.display = 'none';
+            } else {
+                userInfoFields.style.display = 'block';
+            }
         });
 
         // 点击模态框外部关闭
@@ -466,7 +690,7 @@ class HealingManager {
                     // 显示用户信息提交表单
                     setTimeout(() => {
                         this.healingChatModal.classList.remove('active');
-                        this.userInfoModal.classList.add('active');
+                        this.showUserInfoModal();
                     }, 1000);
                 }
             } else {
@@ -486,9 +710,67 @@ class HealingManager {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
+    async showUserInfoModal() {
+        this.userInfoModal.classList.add('active');
+
+        // 加载老师列表
+        try {
+            const response = await fetch(window.API_BASE_URL + '/api/teachers');
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                const teacherSelector = document.getElementById('teacherSelector');
+                teacherSelector.innerHTML = '<option value="">请选择老师</option>';
+
+                result.teachers.forEach(teacher => {
+                    const option = document.createElement('option');
+                    option.value = teacher.id;
+                    option.textContent = teacher.teacher_name || teacher.username;
+                    teacherSelector.appendChild(option);
+                });
+
+                // 监听老师选择变化
+                teacherSelector.addEventListener('change', async (e) => {
+                    await this.loadTeacherClassesForStudent(e.target.value);
+                });
+            }
+        } catch (error) {
+            console.error('加载老师列表失败:', error);
+        }
+    }
+
+    async loadTeacherClassesForStudent(teacherId) {
+        const classSelector = document.getElementById('userClassSelector');
+
+        if (!teacherId) {
+            classSelector.innerHTML = '<option value="">请先选择老师</option>';
+            return;
+        }
+
+        try {
+            const response = await fetch(window.API_BASE_URL + `/api/teachers/${teacherId}/classes`);
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                classSelector.innerHTML = '<option value="">请选择班级</option>';
+
+                result.classes.forEach(cls => {
+                    const option = document.createElement('option');
+                    option.value = cls.class_number;
+                    option.textContent = cls.class_number;
+                    classSelector.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('加载班级列表失败:', error);
+            classSelector.innerHTML = '<option value="">加载失败</option>';
+        }
+    }
+
     async submitUserInfo() {
         const userName = document.getElementById('userName').value.trim();
         const userStudentId = document.getElementById('userStudentId').value.trim();
+        const userClass = document.getElementById('userClassSelector').value;
         const isAnonymous = document.getElementById('isAnonymous').checked;
 
         try {
@@ -497,8 +779,9 @@ class HealingManager {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     sessionId: this.currentSessionId,
-                    userName,
-                    userStudentId,
+                    userName: isAnonymous ? '' : userName,
+                    userStudentId: isAnonymous ? '' : userStudentId,
+                    userClass: isAnonymous ? '' : userClass,
                     isAnonymous
                 })
             });
