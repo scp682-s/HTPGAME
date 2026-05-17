@@ -188,6 +188,9 @@ window.generateNewReport = async function() {
   const timeSeconds = Math.floor((Date.now() - game.startTime) / 1000);
   const clientId = getOrCreateClientId();
 
+  // 从后端API获取完整的游戏状态（包含metrics）
+  const gameState = game.apiClient.currentGame;
+
   const data = {
     client_id: clientId,
     game_id: 'game-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9),
@@ -200,9 +203,15 @@ window.generateNewReport = async function() {
       trickster: game.modifiers.trickster || false
     },
     image_name: document.getElementById('previewImage')?.src.split('/').pop() || '用户图片',
-    piece_order: game.pieceOrder || [],
-    time_intervals: game.timeIntervals || [],
-    modification_count: game.modificationCount || 0
+    piece_order: gameState?.metrics?.pieceOrder || [],
+    time_intervals: gameState?.metrics?.timeIntervals || [],
+    modification_count: gameState?.metrics?.modificationCount || 0,
+    // 新增：行为统计数据
+    behavior_log: gameState?.metrics?.behaviorLog || [],
+    used_auto_solve: gameState?.metrics?.usedAutoSolve || false,
+    undo_count: gameState?.metrics?.undoCount || 0,
+    shuffle_count: gameState?.metrics?.shuffleCount || 0,
+    rotate_count: gameState?.metrics?.rotateCount || 0
   };
 
   const modal = document.getElementById('reportModal');

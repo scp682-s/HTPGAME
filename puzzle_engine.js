@@ -31,6 +31,12 @@ class PuzzleMetrics {
     this.actionTimestamps = [];
     this.timeIntervals = [];
     this.modificationCount = 0;
+    // 新增：行为记录
+    this.behaviorLog = [];  // 记录所有重要行为：{type, timestamp, details}
+    this.usedAutoSolve = false;  // 是否使用了自动完成
+    this.undoCount = 0;  // 撤销次数
+    this.shuffleCount = 0;  // 重新打乱次数
+    this.rotateCount = 0;  // 旋转次数
   }
 }
 
@@ -246,6 +252,17 @@ class PuzzleEngine {
       message = '碎片已翻转 180°';
     }
 
+    // 记录旋转行为
+    state.metrics.rotateCount++;
+    state.metrics.behaviorLog.push({
+      type: 'rotate',
+      timestamp: Date.now(),
+      details: {
+        pieceId: pieceId,
+        isRotated: state.rotations.has(pieceId)
+      }
+    });
+
     state.metrics.modificationCount++;
     this._recordMove(state);
     message = this._postActionUpdate(state, message);
@@ -255,6 +272,10 @@ class PuzzleEngine {
   _actionShuffle(state) {
     this._ensurePlayingOrCompleted(state);
     this._pushHistory(state);
+
+    // 记录重新打乱行为（在重置metrics之前）
+    const oldMetrics = state.metrics;
+    const shuffleCount = (oldMetrics.shuffleCount || 0) + 1;
 
     const visibleIds = Object.keys(state.pieces).filter(id => !state.hiddenPool.has(id));
     this._shuffle(visibleIds);
@@ -273,6 +294,15 @@ class PuzzleEngine {
     state.gameState = 'playing';
     state.tricksterTriggered = false;
     state.metrics = new PuzzleMetrics();
+    state.metrics.shuffleCount = shuffleCount;
+    state.metrics.behaviorLog.push({
+      type: 'shuffle',
+      timestamp: Date.now(),
+      details: {
+        previousMoveCount: oldMetrics.moveCount || 0,
+        shuffleNumber: shuffleCount
+      }
+    });
     state.lastMessage = '碎片已打乱，重新开始吧';
     return state.lastMessage;
   }
@@ -281,6 +311,16 @@ class PuzzleEngine {
     if (state.history.length === 0) {
       throw new PuzzleError('当前没有可回退的操作');
     }
+
+    // 记录撤销行为
+    state.metrics.undoCount++;
+    state.metrics.behaviorLog.push({
+      type: 'undo',
+      timestamp: Date.now(),
+      details: {
+        currentMoveCount: state.moveCount
+      }
+    });
 
     const snapshot = state.history.pop();
     state.board = snapshot.board;
@@ -300,6 +340,22 @@ class PuzzleEngine {
     this._ensurePlayingOrCompleted(state);
     this._pushHistory(state);
 
+    console.log('🔍 _actionSolve 开始，state.moveCount:', state.moveCount);
+
+    // 保存自动完成前的步数
+    const moveCountBeforeSolve = state.moveCount;
+
+    // 记录自动完成行为
+    state.metrics.usedAutoSolve = true;
+    state.metrics.behaviorLog.push({
+      type: 'auto_solve',
+      timestamp: Date.now(),
+      details: {
+        moveCountBeforeSolve: moveCountBeforeSolve,
+        elapsedSeconds: Math.floor((Date.now() - state.startedAt) / 1000)
+      }
+    });
+
     const solvedBoard = [];
     for (let row = 0; row < state.gridSize; row++) {
       for (let col = 0; col < state.gridSize; col++) {
@@ -312,6 +368,11 @@ class PuzzleEngine {
     state.hiddenPool.clear();
     state.rotations.clear();
     state.gameState = 'completed';
+    // 重要：保持原有的步数，不重置
+    // state.moveCount 保持不变
+
+    console.log('🔍 _actionSolve 结束，state.moveCount:', state.moveCount);
+
     state.lastMessage = '已自动完成拼图';
     return state.lastMessage;
   }
@@ -456,6 +517,8 @@ class PuzzleEngine {
       state.lastMessage = message;
     }
 
+    console.log('_serializeState 被调用，state.moveCount:', state.moveCount);
+
     const [correctCount, totalCells] = this._countCorrectCells(state);
     const elapsedSeconds = Math.max(0, Math.floor((Date.now() - state.startedAt) / 1000));
     const completionTime = this._formatElapsed(elapsedSeconds);
@@ -484,7 +547,13 @@ class PuzzleEngine {
         pieceOrder: state.metrics.pieceOrder,
         timeIntervals: state.metrics.timeIntervals,
         modificationCount: state.metrics.modificationCount,
-        completionTime: state.gameState === 'completed' ? completionTime : null
+        completionTime: state.gameState === 'completed' ? completionTime : null,
+        // 新增：行为统计
+        behaviorLog: state.metrics.behaviorLog || [],
+        usedAutoSolve: state.metrics.usedAutoSolve || false,
+        undoCount: state.metrics.undoCount || 0,
+        shuffleCount: state.metrics.shuffleCount || 0,
+        rotateCount: state.metrics.rotateCount || 0
       }
     };
   }
@@ -515,6 +584,7 @@ class PuzzleEngine {
       state.metrics.timeIntervals.push(interval);
     }
     state.metrics.actionTimestamps.push(now);
+    console.log('🔍 _recordMove 被调用，moveCount 从', state.moveCount, '增加到', state.moveCount + 1);
     state.moveCount++;
   }
 

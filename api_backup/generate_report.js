@@ -33,7 +33,13 @@ export default async function handler(req, res, analyticsStore) {
       image_name = '未知图片',
       piece_order = [],
       time_intervals = [],
-      modification_count = 0
+      modification_count = 0,
+      // 新增：行为统计数据
+      behavior_log = [],
+      used_auto_solve = false,
+      undo_count = 0,
+      shuffle_count = 0,
+      rotate_count = 0
     } = gameData;
 
     // 如果有数据库，记录游戏会话和报告请求
@@ -108,6 +114,12 @@ export default async function handler(req, res, analyticsStore) {
 - 特殊模组开启情况：${modifiersText(modifiers)}
 - 行为特征：${behaviorTraits(moves, time_seconds, grid_size)}
 
+【行为统计】
+- 是否使用自动完成：${used_auto_solve ? '是（在' + moves + '步后使用）' : '否'}
+- 撤销次数：${undo_count}次
+- 重新打乱次数：${shuffle_count}次
+- 旋转次数：${rotate_count}次
+
 ${recentBehaviorSummary}
 
 【分析要求】
@@ -115,10 +127,15 @@ ${recentBehaviorSummary}
 2. 当本次数据与近期趋势冲突时，优先解释本次数据，并把历史信息写成"可能的背景趋势"
 3. 当近期样本偏少时，明确提示"样本有限"，禁止下绝对结论
 4. 每条判断都要映射到行为证据（用时、步数、间隔、修改次数等）
-5. 禁止医学诊断、病理标签或治疗结论
-6. 禁止"你有问题""你患有"等负向定性表达
-7. 只能做心理科普和自我觉察引导，不替代专业诊疗
-8. 禁止使用表情符号，中文表达要清晰整洁
+5. **重点关注行为统计数据**：
+   - 使用自动完成可能反映：遇到困难时的应对方式、对完美的追求程度、时间压力感知
+   - 撤销次数反映：决策谨慎度、容错心态、完美主义倾向
+   - 重新打乱次数反映：面对挫折的态度、重新开始的勇气、策略调整能力
+   - 旋转次数反映：空间思维能力、耐心程度、细节关注度
+6. 禁止医学诊断、病理标签或治疗结论
+7. 禁止"你有问题""你患有"等负向定性表达
+8. 只能做心理科普和自我觉察引导，不替代专业诊疗
+9. 禁止使用表情符号，中文表达要清晰整洁
 
 【输出格式要求】
 1. 首先输出一个表格，包含游戏数据（使用HTML表格格式）
@@ -136,6 +153,10 @@ ${recentBehaviorSummary}
 <tr><td style="padding:8px; border:1px solid #ddd; background:#f5f5f5;">用时</td><td style="padding:8px; border:1px solid #ddd;">${minutes}分${seconds}秒</td></tr>
 <tr><td style="padding:8px; border:1px solid #ddd; background:#f5f5f5;">步数</td><td style="padding:8px; border:1px solid #ddd;">${moves}步</td></tr>
 <tr><td style="padding:8px; border:1px solid #ddd; background:#f5f5f5;">修改次数</td><td style="padding:8px; border:1px solid #ddd;">${modification_count}次</td></tr>
+${used_auto_solve ? '<tr><td style="padding:8px; border:1px solid #ddd; background:#f5f5f5;">自动完成</td><td style="padding:8px; border:1px solid #ddd;">是</td></tr>' : ''}
+${undo_count > 0 ? '<tr><td style="padding:8px; border:1px solid #ddd; background:#f5f5f5;">撤销次数</td><td style="padding:8px; border:1px solid #ddd;">' + undo_count + '次</td></tr>' : ''}
+${shuffle_count > 0 ? '<tr><td style="padding:8px; border:1px solid #ddd; background:#f5f5f5;">重新打乱</td><td style="padding:8px; border:1px solid #ddd;">' + shuffle_count + '次</td></tr>' : ''}
+${rotate_count > 0 ? '<tr><td style="padding:8px; border:1px solid #ddd; background:#f5f5f5;">旋转次数</td><td style="padding:8px; border:1px solid #ddd;">' + rotate_count + '次</td></tr>' : ''}
 </table>
 
 <h3>游戏表现概述</h3>

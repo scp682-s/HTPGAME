@@ -1489,6 +1489,19 @@
         function showPage(pageId) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.getElementById(pageId).classList.add('active');
+
+            // 如果切换到完成页面，恢复保存的步数和时间
+            if (pageId === 'pageComplete') {
+                const savedTime = localStorage.getItem('lastGameTime');
+                const savedSteps = localStorage.getItem('lastGameSteps');
+                if (savedTime) {
+                    document.getElementById('completeTime').textContent = savedTime;
+                }
+                if (savedSteps) {
+                    document.getElementById('completeSteps').textContent = savedSteps;
+                }
+                console.log('恢复完成页面数据 - 时间:', savedTime, '步数:', savedSteps);
+            }
         }
 
         document.getElementById('startBtn').addEventListener('click', () => showPage('pageControl'));
@@ -1859,13 +1872,33 @@
                 }
 
                 // 渲染棋盘上的碎片
-                gameState.board.forEach((pieceId, index) => {
-                    if (pieceId) {
-                        const piece = this.pieceData.find(p => p.id === pieceId);
+                gameState.board.forEach((pieceData, index) => {
+                    if (pieceData) {
+                        const piece = this.pieceData.find(p => p.id === pieceData.id);
                         if (piece) {
-                            const pieceDiv = this.createPieceElement(piece, gameState);
+                            const pieceDiv = document.createElement('div');
+                            pieceDiv.className = 'puzzle-piece';
+                            pieceDiv.style.backgroundImage = `url(${piece.dataURL})`;
+                            pieceDiv.dataset.pieceId = piece.id;
+                            pieceDiv.dataset.originalRow = piece.originalRow;
+                            pieceDiv.dataset.originalCol = piece.originalCol;
+
+                            // 旋转状态
+                            if (pieceData.rotated) {
+                                pieceDiv.style.transform = 'rotate(180deg)';
+                                pieceDiv.dataset.rotated = 'true';
+                            }
+
+                            pieceDiv.addEventListener('click', (e) => this.onPuzzlePieceClick(e, pieceDiv));
                             this.cells[index].appendChild(pieceDiv);
                             this.bindPuzzlePieceDragEvents(pieceDiv);
+
+                            // 检查是否在正确位置
+                            const cellRow = Math.floor(index / gameState.gridSize);
+                            const cellCol = index % gameState.gridSize;
+                            if (piece.originalRow === cellRow && piece.originalCol === cellCol && !pieceData.rotated) {
+                                this.cells[index].classList.add('correct');
+                            }
                         }
                     }
                 });
@@ -2027,7 +2060,7 @@
             }
             
             // 拖动结束
-            onDragEnd(e) {
+            async onDragEnd(e) {
                 if (!this.dragSource) return;
                 
                 // 清除所有格子的悬停效果
@@ -2037,25 +2070,30 @@
                     // 确实发生了拖动
                     const touch = e.changedTouches[0];
                     const targetCell = this.getCellAtPosition(touch.clientX, touch.clientY);
-                    
+
                     if (targetCell) {
+                        const targetIndex = parseInt(targetCell.dataset.index);
+
                         if (this.dragFromGrid) {
-                            // 从格子内拖动的碎片
+                            // 从格子内拖动的碎片 - 使用API
                             const sourceCell = this.dragSource.parentElement;
                             if (sourceCell !== targetCell) {
-                                // 模拟格子间交换
-                                this.selectedCell = sourceCell;
-                                this.swapGridPieces(sourceCell, targetCell);
+                                const sourceIndex = parseInt(sourceCell.dataset.index);
+                                try {
+                                    const gameState = await this.apiClient.moveCell(sourceIndex, targetIndex);
+                                    this.updateGameState(gameState);
+                                } catch (error) {
+                                    console.error('拖拽移动失败:', error);
+                                }
                             }
                         } else {
-                            // 从碎片区拖动的碎片
-                            this.selectedPiece = this.dragSource;
-                            const existingPiece = targetCell.querySelector('.puzzle-piece');
-                            
-                            if (existingPiece) {
-                                this.swapWithCell(targetCell, existingPiece);
-                            } else {
-                                this.placeToCell(targetCell);
+                            // 从碎片区拖动的碎片 - 使用API
+                            const pieceId = this.dragSource.dataset.pieceId;
+                            try {
+                                const gameState = await this.apiClient.placeFromTray(pieceId, targetIndex);
+                                this.updateGameState(gameState);
+                            } catch (error) {
+                                console.error('拖拽放置失败:', error);
                             }
                         }
                     }
@@ -2396,8 +2434,10 @@
 
             // 自动完成
             async solvePuzzle() {
+                console.log('solvePuzzle 被调用，当前 moveCount:', this.moveCount);
                 try {
                     const gameState = await this.apiClient.solve();
+                    console.log('后端返回的 gameState:', gameState);
                     this.updateGameState(gameState);
                 } catch (error) {
                     alert('自动完成失败: ' + error.message);
@@ -2406,8 +2446,13 @@
 
             // 更新游戏状态
             updateGameState(gameState) {
+                console.log('updateGameState 被调用');
+                console.log('  后端返回的 moveCount:', gameState.moveCount);
+                console.log('  当前前端的 moveCount:', this.moveCount);
+                console.log('  是否使用了自动完成:', gameState.metrics?.usedAutoSolve);
                 this.gameState = gameState.gameState;
                 this.moveCount = gameState.moveCount;
+                console.log('  更新后前端的 moveCount:', this.moveCount);
 
                 // 清空当前界面
                 this.gridContainer.innerHTML = '';
@@ -2544,12 +2589,19 @@
             }
             
             showComplete() {
+                console.log('showComplete 被调用，当前 moveCount:', this.moveCount);
                 const elapsed = Date.now() - this.startTime;
                 const minutes = Math.floor(elapsed / 60000);
                 const seconds = Math.floor((elapsed % 60000) / 1000);
-                document.getElementById('completeTime').textContent =
-                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                const timeText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+                // 保存到 localStorage，防止页面切换后丢失
+                localStorage.setItem('lastGameTime', timeText);
+                localStorage.setItem('lastGameSteps', this.moveCount);
+
+                document.getElementById('completeTime').textContent = timeText;
                 document.getElementById('completeSteps').textContent = this.moveCount;
+                console.log('completeSteps 元素已设置为:', this.moveCount);
 
                 setTimeout(() => {
                     showPage('pageComplete');
