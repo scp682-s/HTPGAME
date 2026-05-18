@@ -534,84 +534,82 @@ app.post('/api/healing/submit-info', async (req, res) => {
 
 // 生成疗愈回复的辅助函数
 async function generateHealingResponse(messages, reportContent, questionNum) {
-  // 这里应该调用DeepSeek API，暂时返回基于报告内容的模拟回复
-  const userMessages = messages.filter(m => m.role === 'user');
-  const latestUserMessage = userMessages[userMessages.length - 1]?.content || '';
+  try {
+    // 构建系统提示词
+    const systemPrompt = `你是一位专业的心理咨询师，正在与一位完成了房树人心理测试的用户进行对话。
 
-  // 分析报告内容中的关键词
-  const reportLower = (reportContent || '').toLowerCase();
-  const hasAnxiety = reportLower.includes('焦虑') || reportLower.includes('紧张') || reportLower.includes('不安');
-  const hasDepression = reportLower.includes('抑郁') || reportLower.includes('低落') || reportLower.includes('消极');
-  const hasStress = reportLower.includes('压力') || reportLower.includes('疲惫') || reportLower.includes('负担');
-  const hasConfusion = reportLower.includes('迷茫') || reportLower.includes('困惑') || reportLower.includes('犹豫');
+**用户的心理报告内容：**
+${reportContent}
 
-  if (questionNum === 1) {
-    // 第一个问题：针对用户提问给出回应，安抚情绪
-    let response = '我理解你的感受。';
+**你的角色和任务：**
+1. 你已经仔细阅读了用户的心理报告
+2. 根据报告内容和用户的提问，提供温暖、专业的心理支持
+3. 这是第 ${questionNum} 次对话（共3次）
+4. 回复必须控制在200字以内
+5. 语气要温和、共情、支持性强
+6. 避免使用过于专业的术语，用通俗易懂的语言
+7. 如果是第3次对话，需要给出总结性的建议
 
-    if (hasAnxiety) {
-      response += '从你的报告中，我看到你可能有一些焦虑的情绪。这种感觉很多人都会有，是正常的心理反应。';
-    } else if (hasDepression) {
-      response += '我注意到你可能有些情绪低落。这些感受都是真实的，不要责怪自己。';
-    } else if (hasStress) {
-      response += '你可能正承受着一些压力。在现代社会，这是很常见的情况。';
-    } else if (hasConfusion) {
-      response += '你可能正处于探索和思考的阶段。这种迷茫感其实是成长的一部分。';
+**重要限制：**
+- 回复字数不超过200字
+- 基于报告内容进行个性化回复
+- 保持温暖、专业、支持的语气`;
+
+    // 构建对话历史
+    const conversationMessages = [
+      { role: 'system', content: systemPrompt }
+    ];
+
+    // 添加用户的历史消息
+    messages.forEach(msg => {
+      if (msg.role === 'user' || msg.role === 'assistant') {
+        conversationMessages.push({
+          role: msg.role,
+          content: msg.content
+        });
+      }
+    });
+
+    // 调用 DeepSeek API
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: conversationMessages,
+        temperature: 0.7,
+        max_tokens: 300
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`DeepSeek API 调用失败: ${response.status}`);
+    }
+
+    const data = await response.json();
+    let aiResponse = data.choices[0].message.content.trim();
+
+    // 确保回复不超过200字
+    if (aiResponse.length > 200) {
+      aiResponse = aiResponse.substring(0, 197) + '...';
+    }
+
+    return aiResponse;
+
+  } catch (error) {
+    console.error('AI 回复生成失败:', error);
+
+    // 降级方案：返回简单的回复
+    if (questionNum === 1) {
+      return '我理解你的感受。从报告来看，你正在经历一些情绪波动，这是很正常的。请记住，每个人都有自己的节奏，不要给自己太大压力。你愿意和我分享更多吗？';
+    } else if (questionNum === 2) {
+      return '谢谢你愿意和我分享。你已经在努力面对自己的感受了，这本身就很了不起。记住，你不是一个人在面对这些。每个人都有困难时刻，重要的是学会接纳自己。';
     } else {
-      response += '从报告来看，你的整体状态还不错。';
+      return '通过我们的对话，我看到你正在积极面对自己的情绪。建议：1. 保持自我觉察 2. 向信任的人倾诉 3. 保持规律作息。如果压力持续，建议寻求专业帮助。记住，寻求帮助是勇敢的表现。祝你一切顺利！';
     }
-
-    response += '你提到的这些感受都是可以理解的。请记住，每个人都有自己的节奏，不要给自己太大压力。';
-
-    return response;
-  } else if (questionNum === 2) {
-    // 第二个问题：继续安抚和引导，给予支持
-    let response = '谢谢你愿意和我分享。';
-
-    if (hasAnxiety || hasStress) {
-      response += '面对压力和焦虑，你可以尝试一些放松的方式，比如深呼吸、散步、听音乐，或者找信任的朋友聊聊天。';
-    } else if (hasDepression) {
-      response += '情绪有起伏是很正常的。当你感到低落时，可以做一些让自己开心的小事，或者寻求身边人的陪伴。';
-    } else {
-      response += '你已经在努力面对自己的感受了，这本身就很了不起。';
-    }
-
-    response += '记住，你不是一个人在面对这些。每个人都有自己的困难时刻，重要的是学会接纳自己。';
-
-    return response;
-  } else {
-    // 第三个问题：总结并给出结论
-    let response = '通过我们的三次对话和您的心理报告，我想给您一些总结和建议：\n\n';
-
-    response += '📊 **报告分析**：\n';
-    if (hasAnxiety) {
-      response += '• 您的报告显示有一些焦虑情绪，这在当前环境下是可以理解的\n';
-    }
-    if (hasStress) {
-      response += '• 您可能承受着一定的压力，需要适当调节和放松\n';
-    }
-    if (hasDepression) {
-      response += '• 报告中反映出一些情绪低落的迹象，建议多关注自己的情绪变化\n';
-    }
-    if (hasConfusion) {
-      response += '• 您正处于探索和思考的阶段，这是成长的必经之路\n';
-    }
-    if (!hasAnxiety && !hasStress && !hasDepression && !hasConfusion) {
-      response += '• 您的整体心理状态良好，继续保持积极的生活态度\n';
-    }
-
-    response += '\n💡 **我的建议**：\n';
-    response += '1. 继续保持自我觉察，但不要过度苛责自己\n';
-    response += '2. 适当的时候，可以向身边信任的人倾诉\n';
-    response += '3. 保持规律的作息和适度的运动\n';
-
-    if (hasAnxiety || hasDepression || hasStress) {
-      response += '4. 如果感到压力持续或加重，建议寻求学校心理咨询中心的专业帮助\n';
-    }
-
-    response += '\n记住，寻求帮助是勇敢的表现。你值得被关心和支持。祝你一切顺利！🌟';
-
-    return response;
   }
 }
 
