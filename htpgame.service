@@ -1,0 +1,18 @@
+[Unit]
+Description=HTP Game Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/HTPGAME
+Environment="NODE_ENV=production"
+EnvironmentFile=/root/HTPGAME/.env
+ExecStart=/usr/bin/node /root/HTPGAME/server.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
