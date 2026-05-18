@@ -536,24 +536,28 @@ app.post('/api/healing/submit-info', async (req, res) => {
 async function generateHealingResponse(messages, reportContent, questionNum) {
   try {
     // 构建系统提示词
-    const systemPrompt = `你是一位专业的心理咨询师，正在与一位完成了房树人心理测试的用户进行对话。
+    const systemPrompt = `你是一位温暖、专业的心理咨询师，正在与一位刚完成房树人心理测试的来访者进行对话。
 
-**用户的心理报告内容：**
+【来访者的心理报告】
 ${reportContent}
 
-**你的角色和任务：**
-1. 你已经仔细阅读了用户的心理报告
-2. 根据报告内容和用户的提问，提供温暖、专业的心理支持
-3. 这是第 ${questionNum} 次对话（共3次）
-4. 回复必须控制在200字以内
-5. 语气要温和、共情、支持性强
-6. 避免使用过于专业的术语，用通俗易懂的语言
-7. 如果是第3次对话，需要给出总结性的建议
+【你的任务】
+- 你已仔细阅读了来访者的心理报告
+- 这是第 ${questionNum}/3 次对话
+- 根据报告内容和来访者的提问，提供个性化的心理支持
+- 用温暖、共情的语气回应，让来访者感到被理解和支持
+- 避免说教，多倾听和理解
+- 回复控制在150-200字
 
-**重要限制：**
-- 回复字数不超过200字
-- 基于报告内容进行个性化回复
-- 保持温暖、专业、支持的语气`;
+【对话策略】
+第1次对话：倾听和共情，回应来访者的感受，基于报告内容给予理解
+第2次对话：继续支持，可以提供一些具体的建议或应对方法
+第3次对话：总结对话，给出2-3条简洁的建议，鼓励来访者
+
+【重要】
+- 必须基于报告内容进行个性化回复，不要泛泛而谈
+- 如果报告中提到具体问题（如焦虑、压力、人际关系等），要针对性回应
+- 语言要自然、温暖，像朋友般交流，不要过于正式`;
 
     // 构建对话历史
     const conversationMessages = [
@@ -571,21 +575,24 @@ ${reportContent}
     });
 
     // 调用 DeepSeek API
+    const apiKey = process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY;
     const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages: conversationMessages,
-        temperature: 0.7,
+        temperature: 0.8,
         max_tokens: 300
       })
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`DeepSeek API 调用失败: ${response.status}`, errorText);
       throw new Error(`DeepSeek API 调用失败: ${response.status}`);
     }
 
@@ -597,10 +604,11 @@ ${reportContent}
       aiResponse = aiResponse.substring(0, 197) + '...';
     }
 
+    console.log(`AI 回复生成成功 (第${questionNum}次对话):`, aiResponse.substring(0, 50) + '...');
     return aiResponse;
 
   } catch (error) {
-    console.error('AI 回复生成失败:', error);
+    console.error('AI 回复生成失败，使用降级方案:', error.message);
 
     // 降级方案：返回简单的回复
     if (questionNum === 1) {
