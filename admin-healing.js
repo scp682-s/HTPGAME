@@ -370,11 +370,27 @@ class HealingManager {
 
         // 匿名复选框变化事件
         document.getElementById('isAnonymous').addEventListener('change', (e) => {
+            const teacherSelector = document.getElementById('teacherSelector');
+            const classSelector = document.getElementById('userClassSelector');
+            const nameInput = document.getElementById('userName');
+            const studentIdInput = document.getElementById('userStudentId');
             const userInfoFields = document.getElementById('userInfoFields');
+
             if (e.target.checked) {
+                // 勾选匿名：隐藏并禁用所有输入
                 userInfoFields.style.display = 'none';
+                teacherSelector.disabled = true;
+                classSelector.disabled = true;
+                nameInput.disabled = true;
+                studentIdInput.disabled = true;
             } else {
+                // 取消匿名：显示字段，但保持级联逻辑
                 userInfoFields.style.display = 'block';
+                teacherSelector.disabled = false;
+                // 班级和姓名学号根据选择状态决定
+                classSelector.disabled = !teacherSelector.value;
+                nameInput.disabled = !classSelector.value;
+                studentIdInput.disabled = !classSelector.value;
             }
         });
 
@@ -557,8 +573,24 @@ class HealingManager {
         this.currentReportContent = reportContent;
         this.healingListModal.classList.remove('active');
 
-        // 每次都创建新会话，不恢复旧会话
         const sessionKey = `healing_session_${reportId}`;
+        const sessionStatus = this.getSessionStatus(reportId);
+
+        // 如果是已完成的会话，只显示历史记录（只读模式）
+        if (sessionStatus === 'completed') {
+            const sessionData = JSON.parse(localStorage.getItem(sessionKey));
+            this.currentSessionId = sessionData.sessionId;
+            this.showChatModal(sessionData.questionCount, sessionData.messages, true); // true 表示只读模式
+            return;
+        }
+
+        // 如果是进行中的会话，恢复会话
+        if (sessionStatus === 'in_progress') {
+            const sessionData = JSON.parse(localStorage.getItem(sessionKey));
+            this.currentSessionId = sessionData.sessionId;
+            this.showChatModal(sessionData.questionCount, sessionData.messages, false);
+            return;
+        }
 
         // 创建新会话
         try {
@@ -582,7 +614,7 @@ class HealingManager {
                     messages: []
                 }));
 
-                this.showChatModal(0);
+                this.showChatModal(0, [], false);
             } else {
                 alert('创建疗愈会话失败');
             }
@@ -591,12 +623,15 @@ class HealingManager {
         }
     }
 
-    showChatModal(questionCount = 0) {
+    showChatModal(questionCount = 0, messages = [], readOnly = false) {
         this.healingChatModal.classList.add('active');
         const messagesContainer = document.getElementById('chatMessages');
 
-        if (questionCount === 0) {
-            // 显示报告内容摘要
+        // 清空消息容器
+        messagesContainer.innerHTML = '';
+
+        if (messages.length === 0 && questionCount === 0) {
+            // 显示报告内容摘要（新会话）
             const reportPreview = this.currentReportContent.substring(0, 200);
             messagesContainer.innerHTML = `
                 <div class="chat-message system">
@@ -610,19 +645,37 @@ class HealingManager {
                     您可以向我提出任何关于报告的疑问，或者分享您的感受。我会根据报告内容为您提供支持和建议。
                 </div>
             `;
+        } else {
+            // 恢复历史消息
+            messages.forEach(msg => {
+                this.addMessageToChat(msg.role, msg.content);
+            });
         }
 
         document.getElementById('chatInput').value = '';
         document.getElementById('questionCounter').textContent = `剩余提问次数: ${3 - questionCount}`;
 
-        // 如果已完成3次对话，禁用输入
-        if (questionCount >= 3) {
+        // 如果是只读模式或已完成3次对话，禁用输入
+        if (readOnly || questionCount >= 3) {
             document.getElementById('chatInput').disabled = true;
             document.getElementById('chatSendBtn').disabled = true;
+            document.getElementById('chatInput').placeholder = '对话已结束，仅供查看';
+
+            // 添加只读提示
+            if (readOnly && questionCount >= 3) {
+                const readOnlyTip = document.createElement('div');
+                readOnlyTip.className = 'chat-message system';
+                readOnlyTip.innerHTML = '<strong>💬 对话已完成</strong><br>这是已完成的对话记录，仅供查看。';
+                messagesContainer.appendChild(readOnlyTip);
+            }
         } else {
             document.getElementById('chatInput').disabled = false;
             document.getElementById('chatSendBtn').disabled = false;
+            document.getElementById('chatInput').placeholder = '输入您的问题...';
         }
+
+        // 滚动到底部
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
     async sendMessage() {
@@ -693,6 +746,16 @@ class HealingManager {
     async showUserInfoModal() {
         this.userInfoModal.classList.add('active');
 
+        // 重置表单状态
+        document.getElementById('teacherSelector').innerHTML = '<option value="">请选择老师</option>';
+        document.getElementById('userClassSelector').innerHTML = '<option value="">请先选择老师</option>';
+        document.getElementById('userClassSelector').disabled = true;
+        document.getElementById('userName').value = '';
+        document.getElementById('userName').disabled = true;
+        document.getElementById('userStudentId').value = '';
+        document.getElementById('userStudentId').disabled = true;
+        document.getElementById('isAnonymous').checked = false;
+
         // 加载老师列表
         try {
             const response = await fetch(window.API_BASE_URL + '/api/teachers');
@@ -710,9 +773,26 @@ class HealingManager {
                 });
 
                 // 监听老师选择变化
-                teacherSelector.addEventListener('change', async (e) => {
-                    await this.loadTeacherClassesForStudent(e.target.value);
-                });
+                teacherSelector.removeEventListener('change', this.teacherChangeHandler);
+                this.teacherChangeHandler = async (e) => {
+                    const teacherId = e.target.value;
+                    const classSelector = document.getElementById('userClassSelector');
+                    const nameInput = document.getElementById('userName');
+                    const studentIdInput = document.getElementById('userStudentId');
+
+                    if (teacherId) {
+                        // 启用班级选择器
+                        classSelector.disabled = false;
+                        await this.loadTeacherClassesForStudent(teacherId);
+                    } else {
+                        // 禁用后续选项
+                        classSelector.disabled = true;
+                        classSelector.innerHTML = '<option value="">请先选择老师</option>';
+                        nameInput.disabled = true;
+                        studentIdInput.disabled = true;
+                    }
+                };
+                teacherSelector.addEventListener('change', this.teacherChangeHandler);
             }
         } catch (error) {
             console.error('加载老师列表失败:', error);
@@ -721,9 +801,14 @@ class HealingManager {
 
     async loadTeacherClassesForStudent(teacherId) {
         const classSelector = document.getElementById('userClassSelector');
+        const nameInput = document.getElementById('userName');
+        const studentIdInput = document.getElementById('userStudentId');
 
         if (!teacherId) {
             classSelector.innerHTML = '<option value="">请先选择老师</option>';
+            classSelector.disabled = true;
+            nameInput.disabled = true;
+            studentIdInput.disabled = true;
             return;
         }
 
@@ -740,6 +825,22 @@ class HealingManager {
                     option.textContent = cls.class_number;
                     classSelector.appendChild(option);
                 });
+
+                // 监听班级选择变化
+                classSelector.removeEventListener('change', this.classChangeHandler);
+                this.classChangeHandler = (e) => {
+                    const classValue = e.target.value;
+                    if (classValue) {
+                        // 启用姓名和学号输入
+                        nameInput.disabled = false;
+                        studentIdInput.disabled = false;
+                    } else {
+                        // 禁用姓名和学号输入
+                        nameInput.disabled = true;
+                        studentIdInput.disabled = true;
+                    }
+                };
+                classSelector.addEventListener('change', this.classChangeHandler);
             }
         } catch (error) {
             console.error('加载班级列表失败:', error);
@@ -751,7 +852,24 @@ class HealingManager {
         const userName = document.getElementById('userName').value.trim();
         const userStudentId = document.getElementById('userStudentId').value.trim();
         const userClass = document.getElementById('userClassSelector').value;
+        const teacherId = document.getElementById('teacherSelector').value;
         const isAnonymous = document.getElementById('isAnonymous').checked;
+
+        // 验证必填项
+        if (!isAnonymous) {
+            if (!teacherId) {
+                alert('请选择老师');
+                return;
+            }
+            if (!userClass) {
+                alert('请选择班级');
+                return;
+            }
+            if (!userName || !userStudentId) {
+                alert('请填写姓名和学号');
+                return;
+            }
+        }
 
         try {
             const response = await fetch(window.API_BASE_URL + '/api/healing/submit-info', {
