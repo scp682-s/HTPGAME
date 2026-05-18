@@ -1983,21 +1983,22 @@
             // 拖动移动
             onDragMove(e) {
                 if (!this.dragSource || this.gameState !== 'playing') return;
-                
+
+                // 立即阻止默认行为，防止浏览器滚动
+                e.preventDefault();
+
                 const touch = e.touches[0];
                 const dx = touch.clientX - this.dragStartPos.x;
                 const dy = touch.clientY - this.dragStartPos.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
-                
+
                 // 超过阈值才开始拖动
                 if (!this.isDragging && distance > this.dragThreshold) {
                     this.isDragging = true;
                     this.startDragVisual(touch);
-                    e.preventDefault();
                 }
-                
+
                 if (this.isDragging) {
-                    e.preventDefault();
                     this.updateDragPosition(touch);
                     this.updateDragOverCell(touch);
                 }
