@@ -12,6 +12,7 @@
     "pm2:logs": "pm2 logs http-backend"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "better-sqlite3": "^12.9.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",

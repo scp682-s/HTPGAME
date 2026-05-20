@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import bcrypt from 'bcrypt';
 import handler from './api_backup/generate_report.js';
 import { AnalyticsStore } from './analytics_store.js';
 import { PuzzleEngine, PuzzleError } from './puzzle_engine.js';
@@ -575,7 +576,7 @@ ${reportContent}
     });
 
     // 调用 DeepSeek API
-    const apiKey = process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY;
+    const apiKey = process.env.DEEPSEEK_API_KEY;
     const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: {

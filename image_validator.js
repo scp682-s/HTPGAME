@@ -7,29 +7,29 @@ dotenv.config();
 // 配置常量
 const CUSTOM_IMAGE_MAX_MB = 10;
 const CUSTOM_IMAGE_MAX_BYTES = CUSTOM_IMAGE_MAX_MB * 1024 * 1024;
-const BAILIAN_IMAGE_MAX_MB = 4;
-const BAILIAN_IMAGE_MAX_BYTES = BAILIAN_IMAGE_MAX_MB * 1024 * 1024;
+const DEEPSEEK_IMAGE_MAX_MB = 4;
+const DEEPSEEK_IMAGE_MAX_BYTES = DEEPSEEK_IMAGE_MAX_MB * 1024 * 1024;
 const IMAGE_VALIDATION_CACHE_TTL_SECONDS = 3600; // 1小时缓存
-const DEFAULT_BAILIAN_VISION_MODELS = ['qwen-vl-max', 'qwen-vl-plus'];
+const DEFAULT_DEEPSEEK_VISION_MODEL = 'deepseek-chat';
 
 // 缓存
 const IMAGE_VALIDATION_CACHE = new Map();
 
-// 百炼客户端
-let bailianClient = null;
+// DeepSeek 客户端
+let deepseekClient = null;
 
-function getBailianClient() {
-  if (!bailianClient) {
-    const apiKey = process.env.BAILIAN_API_KEY || process.env.DASHSCOPE_API_KEY;
+function getDeepSeekClient() {
+  if (!deepseekClient) {
+    const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {
-      throw new Error('未配置 BAILIAN_API_KEY（或 DASHSCOPE_API_KEY）');
+      throw new Error('未配置 DEEPSEEK_API_KEY');
     }
-    bailianClient = new OpenAI({
+    deepseekClient = new OpenAI({
       apiKey: apiKey,
-      baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+      baseURL: 'https://api.deepseek.com/v1'
     });
   }
-  return bailianClient;
+  return deepseekClient;
 }
 
 function isBuiltinImage(imageSource) {
@@ -80,12 +80,12 @@ function extractDataImagePayload(imageSource) {
   return { mimeType: mimeMatch[1].toLowerCase(), raw };
 }
 
-function prepareImageForBailian(mimeType, raw) {
+function prepareImageForDeepSeek(mimeType, raw) {
   // 简化版：如果图片小于4MB直接返回，否则报错
-  if (raw.length <= BAILIAN_IMAGE_MAX_BYTES) {
+  if (raw.length <= DEEPSEEK_IMAGE_MAX_BYTES) {
     return { mimeType, raw };
   }
-  throw new Error(`图片大于 ${BAILIAN_IMAGE_MAX_MB}MB，请先压缩后重试`);
+  throw new Error(`图片大于 ${DEEPSEEK_IMAGE_MAX_MB}MB，请先压缩后重试`);
 }
 
 function cleanupImageValidationCache() {
@@ -145,33 +145,29 @@ function toBool(value) {
   return ['true', '1', 'yes', 'y', '是', '有', '包含', '存在'].includes(txt);
 }
 
-function getBailianVisionModels() {
-  const custom = (process.env.BAILIAN_VISION_MODEL || '').trim();
-  if (custom) {
-    const models = custom.split(',').map(m => m.trim()).filter(m => m);
-    if (models.length > 0) return models;
-  }
-  return DEFAULT_BAILIAN_VISION_MODELS;
+function getDeepSeekVisionModel() {
+  const custom = (process.env.DEEPSEEK_VISION_MODEL || '').trim();
+  return custom || DEFAULT_DEEPSEEK_VISION_MODEL;
 }
 
-async function checkCustomImageWithBailian(imageSource) {
+async function checkCustomImageWithDeepSeek(imageSource) {
   const { mimeType, raw } = extractDataImagePayload(imageSource);
   const imageHash = crypto.createHash('sha256').update(raw).digest('hex');
 
   const cached = getCachedImageValidation(imageHash);
   if (cached) return cached;
 
-  const { mimeType: preparedMime, raw: preparedRaw } = prepareImageForBailian(mimeType, raw);
+  const { mimeType: preparedMime, raw: preparedRaw } = prepareImageForDeepSeek(mimeType, raw);
   const preparedSource = `data:${preparedMime};base64,${preparedRaw.toString('base64')}`;
 
-  const clientMM = getBailianClient();
+  const clientMM = getDeepSeekClient();
   let lastErr = null;
   let parsed = null;
 
-  for (const modelName of getBailianVisionModels()) {
-    try {
-      const response = await clientMM.chat.completions.create({
-        model: modelName,
+  const modelName = getDeepSeekVisionModel();
+  try {
+    const response = await clientMM.chat.completions.create({
+      model: modelName,
         messages: [
           {
             role: 'system',
@@ -196,16 +192,13 @@ async function checkCustomImageWithBailian(imageSource) {
         stream: false
       });
 
-      const content = response.choices[0].message.content;
-      parsed = parseJsonFromText(content);
-      if (typeof parsed === 'object' && parsed !== null) {
-        parsed._model = modelName;
-        break;
-      }
-    } catch (e) {
-      lastErr = e;
-      continue;
+    const content = response.choices[0].message.content;
+    parsed = parseJsonFromText(content);
+    if (typeof parsed === 'object' && parsed !== null) {
+      parsed._model = modelName;
     }
+  } catch (e) {
+    lastErr = e;
   }
 
   if (typeof parsed !== 'object' || parsed === null) {
@@ -266,7 +259,7 @@ export async function validateImageSource(imageSource) {
   // data:image 格式，调用多模态校验
   if (isDataImage(imageSource)) {
     try {
-      return await checkCustomImageWithBailian(imageSource);
+      return await checkCustomImageWithDeepSeek(imageSource);
     } catch (e) {
       return {
         valid: false,

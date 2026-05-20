@@ -214,6 +214,50 @@ class AnalyticsStore {
       CREATE INDEX IF NOT EXISTS idx_healing_messages_session
       ON healing_messages(session_id, created_at ASC)
     `);
+
+    // 创建排行榜用户表
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS leaderboard_users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        display_name TEXT NOT NULL,
+        created_at REAL NOT NULL
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_leaderboard_users_username
+      ON leaderboard_users(username)
+    `);
+
+    // 创建排行榜成绩表
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS leaderboard_scores (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        game_id TEXT NOT NULL,
+        grid_size INTEGER NOT NULL,
+        has_rotation INTEGER DEFAULT 0,
+        has_hidden INTEGER DEFAULT 0,
+        has_trickster INTEGER DEFAULT 0,
+        time_seconds INTEGER NOT NULL,
+        moves INTEGER NOT NULL,
+        used_auto_solve INTEGER DEFAULT 0,
+        created_at REAL NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES leaderboard_users(id)
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_leaderboard_scores_difficulty
+      ON leaderboard_scores(grid_size, has_rotation, has_hidden, has_trickster, time_seconds)
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_leaderboard_scores_user
+      ON leaderboard_scores(user_id, created_at DESC)
+    `);
   }
 
   /**
@@ -821,6 +865,126 @@ class AnalyticsStore {
       WHERE id = ?
     `);
     reportStmt.run(reportId);
+  }
+
+  // ==================== 排行榜功能 ====================
+
+  /**
+   * 创建排行榜用户
+   */
+  createLeaderboardUser(username, passwordHash, displayName) {
+    const now = Date.now() / 1000;
+    const stmt = this.db.prepare(`
+      INSERT INTO leaderboard_users (username, password_hash, display_name, created_at)
+      VALUES (?, ?, ?, ?)
+    `);
+
+    const result = stmt.run(username, passwordHash, displayName, now);
+    return result.lastInsertRowid;
+  }
+
+  /**
+   * 根据用户名查找用户
+   */
+  findLeaderboardUserByUsername(username) {
+    const stmt = this.db.prepare(`
+      SELECT * FROM leaderboard_users WHERE username = ?
+    `);
+    return stmt.get(username);
+  }
+
+  /**
+   * 验证用户登录
+   */
+  verifyLeaderboardUser(username, passwordHash) {
+    const stmt = this.db.prepare(`
+      SELECT * FROM leaderboard_users
+      WHERE username = ? AND password_hash = ?
+    `);
+    return stmt.get(username, passwordHash);
+  }
+
+  /**
+   * 提交成绩到排行榜
+   */
+  submitScore(userId, gameId, gridSize, modifiers, timeSeconds, moves, usedAutoSolve) {
+    const now = Date.now() / 1000;
+    const stmt = this.db.prepare(`
+      INSERT INTO leaderboard_scores (
+        user_id, game_id, grid_size, has_rotation, has_hidden, has_trickster,
+        time_seconds, moves, used_auto_solve, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      userId,
+      gameId,
+      gridSize,
+      modifiers.rotation ? 1 : 0,
+      modifiers.hidden ? 1 : 0,
+      modifiers.trickster ? 1 : 0,
+      timeSeconds,
+      moves,
+      usedAutoSolve ? 1 : 0,
+      now
+    );
+  }
+
+  /**
+   * 获取排行榜（按难度筛选）
+   */
+  getLeaderboard(gridSize, hasRotation, hasHidden, hasTrickster, limit = 100) {
+    const stmt = this.db.prepare(`
+      SELECT
+        s.id,
+        s.time_seconds,
+        s.moves,
+        s.created_at,
+        u.display_name,
+        u.username
+      FROM leaderboard_scores s
+      JOIN leaderboard_users u ON s.user_id = u.id
+      WHERE s.grid_size = ?
+        AND s.has_rotation = ?
+        AND s.has_hidden = ?
+        AND s.has_trickster = ?
+        AND s.used_auto_solve = 0
+      ORDER BY s.time_seconds ASC, s.moves ASC
+      LIMIT ?
+    `);
+
+    return stmt.all(
+      gridSize,
+      hasRotation ? 1 : 0,
+      hasHidden ? 1 : 0,
+      hasTrickster ? 1 : 0,
+      limit
+    );
+  }
+
+  /**
+   * 获取用户的最佳成绩
+   */
+  getUserBestScore(userId, gridSize, hasRotation, hasHidden, hasTrickster) {
+    const stmt = this.db.prepare(`
+      SELECT * FROM leaderboard_scores
+      WHERE user_id = ?
+        AND grid_size = ?
+        AND has_rotation = ?
+        AND has_hidden = ?
+        AND has_trickster = ?
+        AND used_auto_solve = 0
+      ORDER BY time_seconds ASC, moves ASC
+      LIMIT 1
+    `);
+
+    return stmt.get(
+      userId,
+      gridSize,
+      hasRotation ? 1 : 0,
+      hasHidden ? 1 : 0,
+      hasTrickster ? 1 : 0
+    );
   }
 
   /**

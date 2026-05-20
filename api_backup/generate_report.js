@@ -1,9 +1,9 @@
 import OpenAI from 'openai';
 
 export default async function handler(req, res, analyticsStore) {
-  // 初始化 OpenAI 客户端（使用 DeepSeek API）
+  // 初始化 DeepSeek 客户端
   const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,  // 从环境变量读取
+    apiKey: process.env.DEEPSEEK_API_KEY,  // 从环境变量读取
     baseURL: "https://api.deepseek.com/v1"
   });
   // 设置 CORS 头（允许前端调用）
