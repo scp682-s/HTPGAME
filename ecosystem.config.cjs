@@ -6,8 +6,7 @@ module.exports = {
     exec_mode: 'fork',
     env: {
       NODE_ENV: 'production',
-      PORT: 3001,
-      DEEPSEEK_API_KEY: 'sk-df5d658eebef45c6a61bd1805f7a99b6'
+      PORT: 3001
     },
     error_file: './logs/error.log',
     out_file: './logs/out.log',
