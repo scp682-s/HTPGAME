@@ -622,8 +622,8 @@ ${reportContent}
   }
 }
 
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running at http://0.0.0.0:${PORT}`);
   console.log(`API endpoints:`);
   console.log(`  - POST   /api/validate-image - 校验图片三要素`);
   console.log(`  - POST   /api/puzzle/games - 创建游戏`);
