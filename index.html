@@ -514,6 +514,52 @@
             font-weight: 500;
         }
 
+        /* 游戏实时信息 */
+        .game-stats {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            margin: 10px 0;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            opacity: 0.9;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .stat-modifiers {
+            flex-direction: row;
+            gap: 8px;
+        }
+
+        .stat-modifiers .stat-value {
+            font-size: 0.85rem;
+            background: rgba(255,255,255,0.2);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+
         /* ==================== 第四页：完成页面 ==================== */
         .page-complete {
             justify-content: center;
@@ -1250,6 +1296,23 @@
                     <div id="gridContainer" class="grid-container" style="display: none;"></div>
                 </div>
             </div>
+
+            <!-- 游戏实时信息 -->
+            <div class="game-stats" id="gameStats" style="display: none;">
+                <div class="stat-item">
+                    <span class="stat-label">步数</span>
+                    <span class="stat-value" id="statMoves">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">耗时</span>
+                    <span class="stat-value" id="statTime">00:00</span>
+                </div>
+                <div class="stat-item stat-modifiers" id="statModifiers" style="display: none;">
+                    <span class="stat-label">难度</span>
+                    <span class="stat-value" id="statModifiersText"></span>
+                </div>
+            </div>
+
             <p class="game-message" id="message">点按碎片，再点按格子放置</p>
             <div class="game-bottom-btns">
                 <button class="btn btn-secondary" id="reshuffleBtn" disabled>🔀 打乱</button>
@@ -1733,6 +1796,7 @@
                 this.gridContainer.style.display = 'none';
                 document.getElementById('reshuffleBtn').disabled = true;
                 document.getElementById('solveBtn').disabled = true;
+                document.getElementById('gameStats').style.display = 'none';
                 this.stopTimer();
             }
             
@@ -2459,6 +2523,9 @@
                 this.moveCount = gameState.moveCount;
                 console.log('  更新后前端的 moveCount:', this.moveCount);
 
+                // 更新实时信息显示
+                this.updateGameStats();
+
                 // 清空当前界面
                 this.gridContainer.innerHTML = '';
                 this.piecesContainer.innerHTML = '';
@@ -2663,13 +2730,47 @@
             startTimer() {
                 this.startTime = Date.now();
                 clearInterval(this.timerInterval);
+
+                // 显示实时信息区域
+                document.getElementById('gameStats').style.display = 'flex';
+                this.updateGameStats();
+
                 this.timerInterval = setInterval(() => {
-                    // 手机版不显示计时器，但仍然计时
+                    this.updateGameStats();
                 }, 1000);
             }
-            
+
             stopTimer() {
                 clearInterval(this.timerInterval);
+            }
+
+            // 更新游戏实时信息
+            updateGameStats() {
+                // 更新步数
+                document.getElementById('statMoves').textContent = this.moveCount;
+
+                // 更新耗时
+                const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                document.getElementById('statTime').textContent =
+                    `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+                // 更新难度词条
+                const modifiers = [];
+                if (this.modifiers.rotation) modifiers.push('🔄 旋转');
+                if (this.modifiers.hidden) modifiers.push('👻 隐藏');
+                if (this.modifiers.trickster) modifiers.push('😈 捣蛋鬼');
+
+                const modifiersEl = document.getElementById('statModifiers');
+                const modifiersTextEl = document.getElementById('statModifiersText');
+
+                if (modifiers.length > 0) {
+                    modifiersEl.style.display = 'flex';
+                    modifiersTextEl.textContent = modifiers.join(' ');
+                } else {
+                    modifiersEl.style.display = 'none';
+                }
             }
         }
 
