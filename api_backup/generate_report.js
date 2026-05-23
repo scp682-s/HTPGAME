@@ -144,8 +144,9 @@ ${recentBehaviorSummary}
    - <h3>心理特质分析</h3>
    - <h3>成长建议</h3>
 3. 在分析中使用<span style="color:#e74c3c">红色</span>、<span style="color:#3498db">蓝色</span>、<span style="color:#2ecc71">绿色</span>等颜色标注重要特质词汇
-4. 整体字数控制在500字以内
-5. 语气温暖、鼓励，避免生硬说教
+4. **严格要求**：整体字数必须控制在500字以内，必须在字数限制内完整表达完所有内容，不能出现未说完的话或省略号结尾
+5. 每个部分必须完整：游戏表现概述（100字内）、心理特质分析（200字内）、成长建议（150字内），确保每部分都有完整的结尾
+6. 语气温暖、鼓励，避免生硬说教
 
 【示例格式】
 <table style="width:100%; border-collapse:collapse; margin:20px 0;">
@@ -173,11 +174,11 @@ ${rotate_count > 0 ? '<tr><td style="padding:8px; border:1px solid #ddd; backgro
     const completion = await openai.chat.completions.create({
       model: 'deepseek-chat',
       messages: [
-        { role: 'system', content: '你是一位温暖、专业的心理分析师，专注于大学生心理健康教育。' },
+        { role: 'system', content: '你是一位温暖、专业的心理分析师，专注于大学生心理健康教育。你必须在规定字数内完整表达所有内容，不能出现未说完的话。' },
         { role: 'user', content: prompt }
       ],
       temperature: 0.7,
-      max_tokens: 2000
+      max_tokens: 1500
     });
 
     const report = completion.choices[0].message.content;
