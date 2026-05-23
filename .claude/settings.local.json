@@ -3,7 +3,8 @@
     "allow": [
       "Bash(node:*)",
       "Bash(mv:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "WebFetch(domain:stackoverflow.com)"
     ]
   }
 }
