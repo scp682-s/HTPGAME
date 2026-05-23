@@ -174,6 +174,8 @@ app.post('/api/reports/list', async (req, res) => {
         LIMIT 1
       `).get(report.id);
 
+      console.log(`报告 #${report.id} 的会话状态:`, sessionInfo);
+
       return {
         ...report,
         sessionId: sessionInfo ? sessionInfo.session_id : null,
