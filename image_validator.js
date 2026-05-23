@@ -19,17 +19,21 @@ const IMAGE_VALIDATION_CACHE = new Map();
 let bailianClient = null;
 
 function getBailianClient() {
-  if (!bailianClient) {
-    const apiKey = process.env.BAILIAN_API_KEY || process.env.DASHSCOPE_API_KEY;
-    if (!apiKey) {
-      throw new Error('未配置 BAILIAN_API_KEY（或 DASHSCOPE_API_KEY）');
-    }
-    bailianClient = new OpenAI({
-      apiKey: apiKey,
-      baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+  // 每次都重新读取环境变量，避免缓存问题
+  const apiKey = process.env.BAILIAN_API_KEY || process.env.DASHSCOPE_API_KEY;
+  if (!apiKey) {
+    console.error('环境变量检查:', {
+      BAILIAN_API_KEY: process.env.BAILIAN_API_KEY ? '已设置' : '未设置',
+      DASHSCOPE_API_KEY: process.env.DASHSCOPE_API_KEY ? '已设置' : '未设置'
     });
+    throw new Error('未配置 BAILIAN_API_KEY（或 DASHSCOPE_API_KEY）');
   }
-  return bailianClient;
+
+  // 每次创建新客户端，确保使用最新的 API Key
+  return new OpenAI({
+    apiKey: apiKey,
+    baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+  });
 }
 
 function isBuiltinImage(imageSource) {

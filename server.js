@@ -503,21 +503,19 @@ app.post('/api/healing/chat', async (req, res) => {
     const sessionInfo = analyticsStore.db.prepare('SELECT report_content FROM healing_sessions WHERE session_id = ?').get(sessionId);
     const reportContent = sessionInfo ? sessionInfo.report_content : '';
 
-    // 调用AI生成回复（传入报告内容）
-    const assistantMessage = await generateHealingResponse(messages, reportContent, newCount);
+    // 设置 SSE 响应头
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
 
-    // 保存AI回复
-    await analyticsStore.addHealingMessage(sessionId, 'assistant', assistantMessage);
+    // 调用AI生成流式回复
+    await generateHealingResponseStream(messages, reportContent, newCount, res, sessionId);
 
-    res.json({
-      success: true,
-      message: assistantMessage,
-      questionCount: newCount,
-      remainingQuestions: 3 - newCount
-    });
   } catch (error) {
     console.error('对话失败:', error);
-    res.status(500).json({ success: false, error: '对话失败' });
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, error: '对话失败' });
+    }
   }
 });
 
@@ -533,7 +531,156 @@ app.post('/api/healing/submit-info', async (req, res) => {
   }
 });
 
-// 生成疗愈回复的辅助函数
+// 生成疗愈回复的流式函数
+async function generateHealingResponseStream(messages, reportContent, questionNum, res, sessionId) {
+  try {
+    // 构建系统提示词
+    const systemPrompt = `你是一位温暖、专业的心理咨询师，正在与一位刚完成房树人心理测试的来访者进行对话。
+
+【来访者的心理报告】
+${reportContent}
+
+【你的任务】
+- 你已仔细阅读了来访者的心理报告
+- 这是第 ${questionNum}/3 次对话
+- 根据报告内容和来访者的提问，提供个性化的心理支持
+- 用温暖、共情的语气回应，让来访者感到被理解和支持
+- 避免说教，多倾听和理解
+- **严格要求**：回复必须控制在150-200字以内，必须在字数限制内完整表达完所有内容，不能出现未说完的话或省略号结尾
+
+【对话策略】
+第1次对话：倾听和共情，回应来访者的感受，基于报告内容给予理解
+第2次对话：继续支持，可以提供一些具体的建议或应对方法
+第3次对话：总结对话，给出2-3条简洁的建议，鼓励来访者
+
+【重要边界】
+- 必须基于报告内容进行个性化回复，不要泛泛而谈
+- 如果报告中提到具体问题（如焦虑、压力、人际关系等），要针对性回应
+- 语言要自然、温暖，像朋友般交流，不要过于正式
+- 你是心理学科普助手，服务对象是大学生，提供的是心理观察与自我觉察建议
+- 不做临床诊断，不开处方，不替代专业心理咨询
+
+【安全与责任】
+- 禁止诊断：不使用"抑郁症""焦虑症"等临床术语，改用"情绪低落""紧张感"等描述性词汇
+- 禁止治疗：不提供药物建议、治疗方案，仅限于心理观察和自我觉察引导
+- 危机识别：如发现严重心理困扰迹象，温和建议寻求学校心理咨询中心或专业机构帮助
+- 隐私保护：不询问敏感个人信息，不记录可识别身份的内容
+- 分为导向：遇到超出能力范围的问题，明确告知"这个问题需要专业心理咨询师的帮助"并引导转介`;
+
+    // 构建对话历史
+    const conversationMessages = [
+      { role: 'system', content: systemPrompt }
+    ];
+
+    // 添加用户的历史消息
+    messages.forEach(msg => {
+      if (msg.role === 'user' || msg.role === 'assistant') {
+        conversationMessages.push({
+          role: msg.role,
+          content: msg.content
+        });
+      }
+    });
+
+    // 调用 DeepSeek API（流式）
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: conversationMessages,
+        temperature: 0.8,
+        max_tokens: 250,
+        stream: true
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`DeepSeek API 调用失败: ${response.status}`, errorText);
+      throw new Error(`DeepSeek API 调用失败: ${response.status}`);
+    }
+
+    let fullResponse = '';
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    // 发送开始事件
+    res.write(`data: ${JSON.stringify({ type: 'start', questionCount: questionNum, remainingQuestions: 3 - questionNum })}\n\n`);
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices[0]?.delta?.content;
+            if (content) {
+              fullResponse += content;
+              // 发送内容块
+              res.write(`data: ${JSON.stringify({ type: 'content', content })}\n\n`);
+            }
+          } catch (e) {
+            // 忽略解析错误
+          }
+        }
+      }
+    }
+
+    // 确保回复不超过200字
+    if (fullResponse.length > 200) {
+      fullResponse = fullResponse.substring(0, 197) + '...';
+    }
+
+    // 保存AI回复到数据库
+    await analyticsStore.addHealingMessage(sessionId, 'assistant', fullResponse);
+
+    // 发送结束事件
+    res.write(`data: ${JSON.stringify({ type: 'done', fullMessage: fullResponse })}\n\n`);
+    res.end();
+
+    console.log(`AI 流式回复生成成功 (第${questionNum}次对话):`, fullResponse.substring(0, 50) + '...');
+
+  } catch (error) {
+    console.error('AI 回复生成失败，使用降级方案:', error.message);
+
+    // 降级方案：返回简单的回复
+    let fallbackMessage = '';
+    if (questionNum === 1) {
+      fallbackMessage = '我理解你的感受。从报告来看，你正在经历一些情绪波动，这是很正常的。请记住，每个人都有自己的节奏，不要给自己太大压力。你愿意和我分享更多吗？';
+    } else if (questionNum === 2) {
+      fallbackMessage = '谢谢你愿意和我分享。你已经在努力面对自己的感受了，这本身就很了不起。记住，你不是一个人在面对这些。每个人都有困难时刻，重要的是学会接纳自己。';
+    } else {
+      fallbackMessage = '通过我们的对话，我看到你正在积极面对自己的情绪。建议：1. 保持自我觉察 2. 向信任的人倾诉 3. 保持规律作息。如果压力持续，建议寻求专业帮助。记住，寻求帮助是勇敢的表现。祝你一切顺利！';
+    }
+
+    // 保存降级回复
+    await analyticsStore.addHealingMessage(sessionId, 'assistant', fallbackMessage);
+
+    // 逐字发送降级回复
+    res.write(`data: ${JSON.stringify({ type: 'start', questionCount: questionNum, remainingQuestions: 3 - questionNum })}\n\n`);
+    for (const char of fallbackMessage) {
+      res.write(`data: ${JSON.stringify({ type: 'content', content: char })}\n\n`);
+      await new Promise(resolve => setTimeout(resolve, 50)); // 50ms 延迟
+    }
+    res.write(`data: ${JSON.stringify({ type: 'done', fullMessage: fallbackMessage })}\n\n`);
+    res.end();
+  }
+}
+
+// 生成疗愈回复的辅助函数（保留用于兼容）
 async function generateHealingResponse(messages, reportContent, questionNum) {
   try {
     // 构建系统提示词

@@ -697,6 +697,18 @@ class HealingManager {
         sessionData.messages.push({ role: 'user', content: message });
         localStorage.setItem(sessionKey, JSON.stringify(sessionData));
 
+        // 禁用输入框，防止重复发送
+        document.getElementById('chatInput').disabled = true;
+        document.getElementById('chatSendBtn').disabled = true;
+
+        // 创建AI消息占位符
+        const messagesContainer = document.getElementById('chatMessages');
+        const aiMessageDiv = document.createElement('div');
+        aiMessageDiv.className = 'chat-message assistant';
+        aiMessageDiv.textContent = '';
+        messagesContainer.appendChild(aiMessageDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
         try {
             const response = await fetch(window.API_BASE_URL + '/api/healing/chat', {
                 method: 'POST',
@@ -704,33 +716,76 @@ class HealingManager {
                 body: JSON.stringify({ sessionId: this.currentSessionId, message })
             });
 
-            const result = await response.json();
-
-            if (response.ok && result.success) {
-                this.addMessageToChat('assistant', result.message);
-                document.getElementById('questionCounter').textContent = `剩余提问次数: ${result.remainingQuestions}`;
-
-                // 保存AI回复到本地
-                sessionData.messages.push({ role: 'assistant', content: result.message });
-                sessionData.questionCount = result.questionCount;
-                localStorage.setItem(sessionKey, JSON.stringify(sessionData));
-
-                if (result.remainingQuestions === 0) {
-                    // 对话结束，禁用输入
-                    document.getElementById('chatInput').disabled = true;
-                    document.getElementById('chatSendBtn').disabled = true;
-
-                    // 显示用户信息提交表单
-                    setTimeout(() => {
-                        this.healingChatModal.classList.remove('active');
-                        this.showUserInfoModal();
-                    }, 1000);
-                }
-            } else {
-                alert(result.error || '发送失败');
+            if (!response.ok) {
+                throw new Error('请求失败');
             }
+
+            // 处理流式响应
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let fullMessage = '';
+            let questionCount = 0;
+            let remainingQuestions = 3;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6);
+                        try {
+                            const parsed = JSON.parse(data);
+
+                            if (parsed.type === 'start') {
+                                questionCount = parsed.questionCount;
+                                remainingQuestions = parsed.remainingQuestions;
+                            } else if (parsed.type === 'content') {
+                                fullMessage += parsed.content;
+                                aiMessageDiv.textContent = fullMessage;
+                                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                            } else if (parsed.type === 'done') {
+                                fullMessage = parsed.fullMessage;
+                                aiMessageDiv.textContent = fullMessage;
+                            }
+                        } catch (e) {
+                            console.error('解析SSE数据失败:', e);
+                        }
+                    }
+                }
+            }
+
+            // 更新剩余次数
+            document.getElementById('questionCounter').textContent = `剩余提问次数: ${remainingQuestions}`;
+
+            // 保存AI回复到本地
+            sessionData.messages.push({ role: 'assistant', content: fullMessage });
+            sessionData.questionCount = questionCount;
+            localStorage.setItem(sessionKey, JSON.stringify(sessionData));
+
+            // 重新启用输入框
+            if (remainingQuestions > 0) {
+                document.getElementById('chatInput').disabled = false;
+                document.getElementById('chatSendBtn').disabled = false;
+            } else {
+                // 对话结束，显示用户信息提交表单
+                setTimeout(() => {
+                    this.healingChatModal.classList.remove('active');
+                    this.showUserInfoModal();
+                }, 1000);
+            }
+
         } catch (error) {
-            alert('发送失败: ' + error.message);
+            console.error('发送失败:', error);
+            aiMessageDiv.textContent = '发送失败，请重试';
+            aiMessageDiv.style.color = '#e74c3c';
+
+            // 重新启用输入框
+            document.getElementById('chatInput').disabled = false;
+            document.getElementById('chatSendBtn').disabled = false;
         }
     }
 
