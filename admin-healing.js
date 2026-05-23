@@ -463,20 +463,28 @@ class HealingManager {
             const moves = report.moves || 0;
             const detailStr = (gridSize > 0 && moves >= 0) ? `${gridSize}×${gridSize} | ${moves}步` : '';
 
-            // 获取会话状态
-            const sessionStatus = this.getSessionStatus(report.id);
+            // 使用后端返回的会话状态
             let buttonHtml = '';
             let buttonStyle = '';
+            let sessionStatus = 'not_started';
 
-            if (sessionStatus === 'not_started') {
+            if (report.hasSession) {
+                if (report.questionCount >= 3) {
+                    sessionStatus = 'completed';
+                    buttonStyle = 'background: #ecf0f1; color: #7f8c8d;';
+                    buttonHtml = '🤍 查看记录';
+                } else if (report.questionCount > 0) {
+                    sessionStatus = 'in_progress';
+                    buttonStyle = 'background: #f39c12; color: white;';
+                    buttonHtml = '💛 继续对话';
+                } else {
+                    sessionStatus = 'not_started';
+                    buttonStyle = 'background: #2ecc71; color: white;';
+                    buttonHtml = '💚 开始疗愈';
+                }
+            } else {
                 buttonStyle = 'background: #2ecc71; color: white;';
                 buttonHtml = '💚 开始疗愈';
-            } else if (sessionStatus === 'in_progress') {
-                buttonStyle = 'background: #f39c12; color: white;';
-                buttonHtml = '💛 继续对话';
-            } else {
-                buttonStyle = 'background: #ecf0f1; color: #7f8c8d;';
-                buttonHtml = '🤍 查看记录';
             }
 
             item.innerHTML = `
@@ -500,7 +508,7 @@ class HealingManager {
             // 绑定开始/继续/查看按钮
             const actionBtn = item.querySelector('.healing-action-btn');
             actionBtn.addEventListener('click', () => {
-                this.startHealing(report.id, report.reportText);
+                this.startHealing(report.id, report.reportText, report.sessionId, report.questionCount, sessionStatus);
             });
 
             // 绑定删除按钮
@@ -515,25 +523,6 @@ class HealingManager {
 
         content.innerHTML = '';
         content.appendChild(list);
-    }
-
-    // 获取会话状态
-    getSessionStatus(reportId) {
-        const sessionKey = `healing_session_${reportId}`;
-        const sessionData = localStorage.getItem(sessionKey);
-
-        if (!sessionData) {
-            return 'not_started';
-        }
-
-        const session = JSON.parse(sessionData);
-        if (session.questionCount >= 3) {
-            return 'completed';
-        } else if (session.questionCount > 0) {
-            return 'in_progress';
-        } else {
-            return 'not_started';
-        }
     }
 
     // 删除会话（联动删除报告和疗愈会话）
@@ -553,10 +542,6 @@ class HealingManager {
             const result = await response.json();
 
             if (response.ok && result.success) {
-                // 删除本地会话数据
-                const sessionKey = `healing_session_${reportId}`;
-                localStorage.removeItem(sessionKey);
-
                 // 重新加载列表
                 this.showHealingList();
                 alert('删除成功');
@@ -568,27 +553,24 @@ class HealingManager {
         }
     }
 
-    async startHealing(reportId, reportContent) {
+    async startHealing(reportId, reportContent, existingSessionId, questionCount, sessionStatus) {
         this.currentReportId = reportId;
         this.currentReportContent = reportContent;
         this.healingListModal.classList.remove('active');
 
-        const sessionKey = `healing_session_${reportId}`;
-        const sessionStatus = this.getSessionStatus(reportId);
-
         // 如果是已完成的会话，只显示历史记录（只读模式）
-        if (sessionStatus === 'completed') {
-            const sessionData = JSON.parse(localStorage.getItem(sessionKey));
-            this.currentSessionId = sessionData.sessionId;
-            this.showChatModal(sessionData.questionCount, sessionData.messages, true); // true 表示只读模式
+        if (sessionStatus === 'completed' && existingSessionId) {
+            this.currentSessionId = existingSessionId;
+            const messages = await this.loadSessionMessages(existingSessionId);
+            this.showChatModal(questionCount, messages, true); // true 表示只读模式
             return;
         }
 
         // 如果是进行中的会话，恢复会话
-        if (sessionStatus === 'in_progress') {
-            const sessionData = JSON.parse(localStorage.getItem(sessionKey));
-            this.currentSessionId = sessionData.sessionId;
-            this.showChatModal(sessionData.questionCount, sessionData.messages, false);
+        if (sessionStatus === 'in_progress' && existingSessionId) {
+            this.currentSessionId = existingSessionId;
+            const messages = await this.loadSessionMessages(existingSessionId);
+            this.showChatModal(questionCount, messages, false);
             return;
         }
 
@@ -605,21 +587,32 @@ class HealingManager {
 
             if (response.ok && result.success) {
                 this.currentSessionId = result.sessionId;
-
-                // 保存会话到本地
-                localStorage.setItem(sessionKey, JSON.stringify({
-                    sessionId: result.sessionId,
-                    reportId: reportId,
-                    questionCount: 0,
-                    messages: []
-                }));
-
                 this.showChatModal(0, [], false);
             } else {
                 alert('创建疗愈会话失败');
             }
         } catch (error) {
             alert('创建疗愈会话失败: ' + error.message);
+        }
+    }
+
+    async loadSessionMessages(sessionId) {
+        try {
+            const response = await fetch(window.API_BASE_URL + '/api/healing/messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                return result.messages.filter(msg => msg.role !== 'system');
+            }
+            return [];
+        } catch (error) {
+            console.error('加载会话消息失败:', error);
+            return [];
         }
     }
 
@@ -690,13 +683,6 @@ class HealingManager {
         this.addMessageToChat('user', message);
         input.value = '';
 
-        // 保存用户消息到本地
-        const sessionKey = `healing_session_${this.currentReportId}`;
-        const sessionData = JSON.parse(localStorage.getItem(sessionKey));
-        if (!sessionData.messages) sessionData.messages = [];
-        sessionData.messages.push({ role: 'user', content: message });
-        localStorage.setItem(sessionKey, JSON.stringify(sessionData));
-
         // 禁用输入框，防止重复发送
         document.getElementById('chatInput').disabled = true;
         document.getElementById('chatSendBtn').disabled = true;
@@ -760,11 +746,6 @@ class HealingManager {
 
             // 更新剩余次数
             document.getElementById('questionCounter').textContent = `剩余提问次数: ${remainingQuestions}`;
-
-            // 保存AI回复到本地
-            sessionData.messages.push({ role: 'assistant', content: fullMessage });
-            sessionData.questionCount = questionCount;
-            localStorage.setItem(sessionKey, JSON.stringify(sessionData));
 
             // 重新启用输入框
             if (remainingQuestions > 0) {

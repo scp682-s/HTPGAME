@@ -163,7 +163,26 @@ app.post('/api/reports/list', async (req, res) => {
   try {
     const { clientId } = req.body;
     const reports = await analyticsStore.getReportsByClient(clientId, 50);
-    res.json({ success: true, reports });
+
+    // 为每个报告查询对应的疗愈会话状态
+    const reportsWithSession = reports.map(report => {
+      const sessionInfo = analyticsStore.db.prepare(`
+        SELECT session_id, question_count, created_at
+        FROM healing_sessions
+        WHERE report_id = ? AND is_deleted = 0
+        ORDER BY created_at DESC
+        LIMIT 1
+      `).get(report.id);
+
+      return {
+        ...report,
+        sessionId: sessionInfo ? sessionInfo.session_id : null,
+        questionCount: sessionInfo ? sessionInfo.question_count : 0,
+        hasSession: !!sessionInfo
+      };
+    });
+
+    res.json({ success: true, reports: reportsWithSession });
   } catch (error) {
     console.error('获取报告列表失败:', error);
     res.status(500).json({ success: false, error: '获取报告列表失败' });
@@ -528,6 +547,18 @@ app.post('/api/healing/submit-info', async (req, res) => {
   } catch (error) {
     console.error('提交信息失败:', error);
     res.status(500).json({ success: false, error: '提交信息失败' });
+  }
+});
+
+// 获取会话消息
+app.post('/api/healing/messages', async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    const messages = await analyticsStore.getHealingMessages(sessionId);
+    res.json({ success: true, messages });
+  } catch (error) {
+    console.error('获取会话消息失败:', error);
+    res.status(500).json({ success: false, error: '获取会话消息失败' });
   }
 });
 
